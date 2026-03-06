@@ -24,7 +24,7 @@ class AbsaController extends Controller
         // supaya PHP tidak stop di 60 detik
         set_time_limit(0);
 
-        $base = rtrim(env('ABSA_API_BASE_URL', 'http://127.0.0.1:8000'), '/');
+        $base = rtrim(env('ABSA_API_BASE_URL', 'http://127.0.0.1:8967'), '/');
 
         try {
             $resp = Http::timeout(180)      // tunggu max 180 detik
