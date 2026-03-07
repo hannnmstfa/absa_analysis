@@ -2696,7 +2696,7 @@
 
       <div class="heroTop">
         <div class="logoBadge">
-          <img id="brandLogoImg" src="{{ $brandLogoPrimary }}" alt="Logo Luxuex"
+          <img id="brandLogoImg" src="{{ asset('logo-luxuex-transparent.png') }}" alt="Logo Luxuex"
             onerror="if(this.dataset.fallback!=='1'){this.dataset.fallback='1';this.src='{{ $brandLogoFallback }}';return;}this.style.display='none';this.nextElementSibling.style.display='flex';">
           <div class="logoFallback">L</div>
         </div>
