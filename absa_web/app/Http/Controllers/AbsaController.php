@@ -45,7 +45,7 @@ class AbsaController extends Controller
         // batasi waktu proses agar worker tidak menggantung tanpa batas.
         set_time_limit(240);
 
-        $base = rtrim(env('ABSA_API_BASE_URL', 'http://127.0.0.1:8000'), '/');
+        $base = rtrim(env('ABSA_API_BASE_URL', 'http://127.0.0.1:8967'), '/');
 
         try {
             $resp = Http::timeout(180)      // tunggu max 180 detik
