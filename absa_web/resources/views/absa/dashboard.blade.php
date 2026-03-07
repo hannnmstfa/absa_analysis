@@ -119,22 +119,41 @@
     }
 
     .logoBadge {
-      width: 54px;
-      height: 54px;
-      border-radius: 16px;
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: transparent;
-      border: none;
-      box-shadow: none;
+      background: linear-gradient(135deg, rgba(214, 181, 74, .08), rgba(214, 181, 74, .03));
+      border: 1px solid rgba(214, 181, 74, .25);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .08);
       overflow: hidden;
+      flex-shrink: 0;
+      animation: logoFadeIn 0.6s ease-out;
+    }
+
+    @keyframes logoFadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
 
     .logoBadge img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+
+    .logoBadge img.loading {
+      opacity: 0.5;
     }
 
     .logoFallback {
@@ -144,8 +163,10 @@
       align-items: center;
       justify-content: center;
       color: var(--gold);
-      font-size: 34px;
-      font-weight: 980;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, rgba(214, 181, 74, .12), rgba(214, 181, 74, .05));
     }
 
     .brand {
@@ -2696,8 +2717,9 @@
 
       <div class="heroTop">
         <div class="logoBadge">
-          <img id="brandLogoImg" src="{{ asset('logo-luxuex-transparent.png') }}" alt="Logo Luxuex"
-            onerror="if(this.dataset.fallback!=='1'){this.dataset.fallback='1';this.src='{{ $brandLogoFallback }}';return;}this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <img id="brandLogoImg" class="loading" src="{{ asset('logo-luxuex-transparent.png') }}" alt="Logo Luxuex"
+            onerror="(function(){if(this.dataset.fallback==='1'){this.style.display='none';this.parentElement.querySelector('.logoFallback').style.display='flex';return;}this.dataset.fallback='1';this.classList.add('loading');this.src='{{ $brandLogoFallback }}';}).call(this);"
+            onload="this.classList.remove('loading');">
           <div class="logoFallback">L</div>
         </div>
         <div class="brand">
