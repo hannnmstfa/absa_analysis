@@ -138,6 +138,7 @@
         opacity: 0;
         transform: scale(0.95);
       }
+
       to {
         opacity: 1;
         transform: scale(1);
@@ -4555,13 +4556,13 @@
           const neg = Number(row.negatif || 0);
           const negPct = Number(row.persen_negatif || 0).toFixed(1);
           return `
-                            <tr>
-                              <td>${safeHtml(periode)}</td>
-                              <td>${total}</td>
-                              <td>${neg}</td>
-                              <td>${negPct}%</td>
-                            </tr>
-                          `;
+                              <tr>
+                                <td>${safeHtml(periode)}</td>
+                                <td>${total}</td>
+                                <td>${neg}</td>
+                                <td>${negPct}%</td>
+                              </tr>
+                            `;
         }).join('');
       }
 
@@ -4587,13 +4588,13 @@
           const value = safeHtml(row.value);
           const text = safeHtml(row.text);
           return `
-                            <tr>
-                              <td><span class="intentBadge ${klass}">${level}</span></td>
-                              <td>${indikator}</td>
-                              <td>${value}</td>
-                              <td><span class="quickRecoText">${text}</span></td>
-                            </tr>
-                          `;
+                              <tr>
+                                <td><span class="intentBadge ${klass}">${level}</span></td>
+                                <td>${indikator}</td>
+                                <td>${value}</td>
+                                <td><span class="quickRecoText">${text}</span></td>
+                              </tr>
+                            `;
         }).join('');
       }
 
@@ -4641,14 +4642,14 @@
           const rowStyle = isActive ? ' style="background:rgba(214,181,74,.13);"' : '';
           const segText = isActive ? `<b>${segName}</b>` : segName;
           return `
-                            <tr${rowStyle}>
-                              <td>${segText}</td>
-                              <td>${jumlah}</td>
-                              <td>${negPct}</td>
-                              <td>${safeHtml(topAspek)}</td>
-                              <td><span class="intentBadge ${ew.klass}">${ew.text}</span></td>
-                            </tr>
-                          `;
+                              <tr${rowStyle}>
+                                <td>${segText}</td>
+                                <td>${jumlah}</td>
+                                <td>${negPct}</td>
+                                <td>${safeHtml(topAspek)}</td>
+                                <td><span class="intentBadge ${ew.klass}">${ew.text}</span></td>
+                              </tr>
+                            `;
         }).join('');
 
         segmentCompareBody.innerHTML = html;
@@ -4661,12 +4662,12 @@
           return;
         }
         topIsuBody.innerHTML = items.map(row => `
-                            <tr>
-                              <td>${safeHtml(row.aspek)}</td>
-                              <td>${safeHtml(row.isu)}</td>
-                              <td>${Number(row.frekuensi || 0)}</td>
-                            </tr>
-                          `).join('');
+                              <tr>
+                                <td>${safeHtml(row.aspek)}</td>
+                                <td>${safeHtml(row.isu)}</td>
+                                <td>${Number(row.frekuensi || 0)}</td>
+                              </tr>
+                            `).join('');
       }
 
       function renderTopKata(items) {
@@ -4676,11 +4677,11 @@
           return;
         }
         topKataChips.innerHTML = items.slice(0, 4).map(row => `
-                            <div class="chip">
-                              <span>${safeHtml(row.kata)}</span>
-                              <b>${Number(row.frekuensi || 0)}</b>
-                            </div>
-                          `).join('');
+                              <div class="chip">
+                                <span>${safeHtml(row.kata)}</span>
+                                <b>${Number(row.frekuensi || 0)}</b>
+                              </div>
+                            `).join('');
       }
 
       function renderSentimenAspek(items) {
@@ -4709,11 +4710,11 @@
               pct = (Number(row.positif || 0) / total) * 100;
             }
             return `
-                                <div class="brow">
-                                  <div class="k">${safeHtml(row.aspek)}</div>
-                                  <div class="v">${pct.toFixed(1)}%</div>
-                                </div>
-                              `;
+                                  <div class="brow">
+                                    <div class="k">${safeHtml(row.aspek)}</div>
+                                    <div class="v">${pct.toFixed(1)}%</div>
+                                  </div>
+                                `;
           }).join('');
         }
 
@@ -4723,12 +4724,12 @@
             const ct = Number(row.total || 0);
             const width = maxCount > 0 ? Math.max(3, Math.round((ct / maxCount) * 100)) : 0;
             return `
-                                <div class="barRow">
-                                  <div class="name">${safeHtml(row.aspek)}</div>
-                                  <div class="bar"><div class="fill" style="width:${width}%"></div></div>
-                                  <div class="p">${ct}</div>
-                                </div>
-                              `;
+                                  <div class="barRow">
+                                    <div class="name">${safeHtml(row.aspek)}</div>
+                                    <div class="bar"><div class="fill" style="width:${width}%"></div></div>
+                                    <div class="p">${ct}</div>
+                                  </div>
+                                `;
           }).join('');
         }
       }
@@ -4746,12 +4747,12 @@
           const val = Number(row.total_negatif || 0);
           const width = maxNeg > 0 ? Math.max(3, Math.round((val / maxNeg) * 100)) : 0;
           return `
-                              <div class="prioRow">
-                                <div class="nm">${safeHtml(row.aspek)}</div>
-                                <div class="prioBar"><div class="prioFill" style="width:${width}%"></div></div>
-                                <div class="prioVal">${val}</div>
-                              </div>
-                            `;
+                                <div class="prioRow">
+                                  <div class="nm">${safeHtml(row.aspek)}</div>
+                                  <div class="prioBar"><div class="prioFill" style="width:${width}%"></div></div>
+                                  <div class="prioVal">${val}</div>
+                                </div>
+                              `;
         }).join('');
       }
 
@@ -4789,15 +4790,15 @@
         };
 
         segmentRekomList.innerHTML = items.slice(0, 3).map(row => `
-                            <div class="rekomItem">
-                              <div class="ricon">★</div>
-                              <div>
-                                <p class="ttl">${safeHtml(toTitleCase(row.aspek))}</p>
-                                <p class="txt">${safeHtml(normalizeSentence(row.text))}</p>
-                                <p class="mini" style="margin-top:4px">${safeHtml(buildMetaLine(row))}</p>
+                              <div class="rekomItem">
+                                <div class="ricon">★</div>
+                                <div>
+                                  <p class="ttl">${safeHtml(toTitleCase(row.aspek))}</p>
+                                  <p class="txt">${safeHtml(normalizeSentence(row.text))}</p>
+                                  <p class="mini" style="margin-top:4px">${safeHtml(buildMetaLine(row))}</p>
+                                </div>
                               </div>
-                            </div>
-                          `).join('');
+                            `).join('');
       }
 
       function renderDrilldown(segmentKey, aspekKey) {
@@ -4893,16 +4894,16 @@
           const isuRaw = row.isu_dominan || '-';
           const isuSafe = escapeHtml(isuRaw);
           return `
-                        <tr>
-                          <td>${Number(row.peringkat || 0) || '-'}</td>
-                          <td>${escapeHtml(row.varian || '-')}</td>
-                          <td>${Number(row.skor_kualitas || 0).toFixed(1)}</td>
-                          <td>${Number(row.persen_negatif || 0).toFixed(1)}%</td>
-                          <td>${Math.max(0, Math.round(Number(row.total_komentar || 0)))}</td>
-                          <td><span class="alignBadge ${badgeKey}">${badgeLabel}</span></td>
-                        <td><span class="variantIsuText" title="${isuSafe}">${isuSafe}</span></td>
-                        </tr>
-                      `;
+                          <tr>
+                            <td>${Number(row.peringkat || 0) || '-'}</td>
+                            <td>${escapeHtml(row.varian || '-')}</td>
+                            <td>${Number(row.skor_kualitas || 0).toFixed(1)}</td>
+                            <td>${Number(row.persen_negatif || 0).toFixed(1)}%</td>
+                            <td>${Math.max(0, Math.round(Number(row.total_komentar || 0)))}</td>
+                            <td><span class="alignBadge ${badgeKey}">${badgeLabel}</span></td>
+                          <td><span class="variantIsuText" title="${isuSafe}">${isuSafe}</span></td>
+                          </tr>
+                        `;
         }).join('');
 
         if (variantSyncHint) {
