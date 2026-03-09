@@ -960,7 +960,9 @@
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
       scroll-behavior: smooth;
+      scroll-padding-inline: 10px;
       overscroll-behavior-x: contain;
       scrollbar-width: thin;
       scrollbar-color: rgba(214, 181, 74, .45) rgba(255, 255, 255, .07);
@@ -1015,6 +1017,18 @@
     .tableScrollX>table {
       margin: 0;
       min-width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .tableScrollX>table th:first-child,
+    .tableScrollX>table td:first-child {
+      padding-left: 12px;
+    }
+
+    .tableScrollX>table th:last-child,
+    .tableScrollX>table td:last-child {
+      padding-right: 12px;
     }
 
     .tableScrollX table {
@@ -1806,7 +1820,12 @@
 
     @media (max-width:768px) {
       #healthScopedArea {
-        overflow: hidden;
+        overflow: visible;
+      }
+
+      .tableScrollX {
+        margin-inline: -4px;
+        padding-inline: 4px;
       }
 
       #healthScopedArea .tableScrollX {
@@ -1877,6 +1896,11 @@
         width: max-content;
         min-width: 100%;
         overflow: visible;
+      }
+
+      .tableScrollX.can-scroll::before,
+      .tableScrollX.can-scroll::after {
+        width: 10px;
       }
 
       th,
@@ -2014,6 +2038,16 @@
     @media (max-width:640px) {
       .wrap {
         padding: 12px 10px 44px;
+      }
+
+      .tableScrollX {
+        margin-inline: -3px;
+        padding-inline: 3px;
+      }
+
+      .tableScrollX.can-scroll::before,
+      .tableScrollX.can-scroll::after {
+        display: none;
       }
 
       .backTopBtn {
