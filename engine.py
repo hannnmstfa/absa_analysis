@@ -40,6 +40,22 @@ def likert_to_sentiment(score) -> str:
     return "Positif"
 
 
+def likert_average_to_sentiment(score) -> str:
+    """Map averaged Likert score to sentiment with interval thresholds."""
+    if pd.isna(score):
+        return "Unknown"
+    try:
+        s = float(score)
+    except Exception:
+        return "Unknown"
+
+    if s <= 2.5:
+        return "Negatif"
+    if s <= 3.5:
+        return "Netral"
+    return "Positif"
+
+
 def is_likert_series(s: pd.Series) -> bool:
     x = pd.to_numeric(s, errors="coerce").dropna()
     if len(x) == 0:
@@ -626,11 +642,67 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             return max(candidates, key=lambda x: len(str(x)))
         return None
 
+    def guess_aspect_issue_column(frame: pd.DataFrame, aspect_name: str) -> Optional[str]:
+        candidates = []
+        aspect_kw = {
+            "aroma": ["aroma", "wangi", "bau"],
+            "ketahanan": ["ketahanan", "tahan", "durability", "lasting"],
+            "kemasan": ["kemasan", "packaging", "botol", "nozzle", "spray", "tutup", "label"],
+        }.get(aspect_name, [aspect_name])
+        issue_kw = ["masalah", "keluhan", "kendala", "problem", "isu", "issue", "pernah dialami"]
+
+        for c in frame.columns:
+            cl = c.lower().strip()
+            if any(k in cl for k in issue_kw) and any(k in cl for k in aspect_kw):
+                candidates.append(c)
+
+        if candidates:
+            # Prefer explicit issue columns (often checkbox/multi-select in Google Forms).
+            candidates.sort(key=lambda x: ("masalah" in x.lower(), len(str(x))), reverse=True)
+            return candidates[0]
+        return None
+
+    def infer_issue_text_sentiment(text: str, aspect_name: str) -> str:
+        normalized = re.sub(r"\s+", " ", str(text or "").lower()).strip()
+        if not normalized or normalized == "nan":
+            return "Unknown"
+
+        no_issue_markers = [
+            "tidak pernah mengalami masalah",
+            "tidak ada masalah",
+            "tidak pernah ada masalah",
+            "tidak mengalami masalah",
+            "aman",
+            "baik baik saja",
+            "baik-baik saja",
+        ]
+        if any(m in normalized for m in no_issue_markers):
+            return "Netral"
+
+        negative_markers_by_aspect = {
+            "kemasan": [
+                "bocor", "rembes", "rusak", "retak", "pecah", "patah", "nozzle macet",
+                "spray tidak merata", "semprot tidak merata", "tutup longgar", "label mudah rusak", "masalah"
+            ],
+            "aroma": ["aroma hilang", "bau hilang", "wangi hilang", "menyengat", "pusing", "masalah"],
+            "ketahanan": ["cepat hilang", "tidak tahan", "kurang tahan", "pudar", "masalah"],
+        }
+        markers = negative_markers_by_aspect.get(aspect_name, ["masalah", "keluhan", "kendala"])
+        if any(m in normalized for m in markers):
+            return "Negatif"
+
+        return "Unknown"
+
     variant_col = guess_variant_column(df_raw)
     aspect_comment_cols = {
         "aroma": guess_aspect_comment_column(df_raw, "aroma"),
         "ketahanan": guess_aspect_comment_column(df_raw, "ketahanan"),
         "kemasan": guess_aspect_comment_column(df_raw, "kemasan"),
+    }
+    aspect_issue_cols = {
+        "aroma": guess_aspect_issue_column(df_raw, "aroma"),
+        "ketahanan": guess_aspect_issue_column(df_raw, "ketahanan"),
+        "kemasan": guess_aspect_issue_column(df_raw, "kemasan"),
     }
 
     # 2) deteksi kolom saran/rekomendasi (agar bisa dipakai nanti)
@@ -694,6 +766,76 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             continue
         if is_likert_series(df_raw[c]):
             likert_cols.append(c)
+
+    aspect_likert_aliases = {
+        "aroma": ["aroma", "wangi", "bau", "scent"],
+        "ketahanan": ["ketahanan", "tahan", "durability", "lasting"],
+        "kemasan": ["kemasan", "packaging", "botol", "nozzle", "spray", "tutup", "label"],
+    }
+
+    def _aspect_likert_cols(frame: pd.DataFrame, aspect: str) -> List[str]:
+        aliases = aspect_likert_aliases.get(aspect, [aspect])
+        cols = []
+        for c in likert_cols:
+            if c not in frame.columns:
+                continue
+            cl = c.lower()
+            if any(k in cl for k in aliases):
+                cols.append(c)
+        return cols
+
+    def _coalesce_sentiments(sentiments: List[str]) -> str:
+        valid = [s for s in sentiments if s in {"Positif", "Netral", "Negatif"}]
+        if not valid:
+            return "Unknown"
+        counts = Counter(valid)
+        # If tied, bias toward Negatif so critical issues are not hidden.
+        if counts.get("Negatif", 0) >= max(counts.get("Positif", 0), counts.get("Netral", 0)):
+            return "Negatif"
+        if counts.get("Positif", 0) >= counts.get("Netral", 0):
+            return "Positif"
+        return "Netral"
+
+    def _sentiment_from_row_aspect_likert(row_data, aspect: str, frame: pd.DataFrame) -> str:
+        cols = _aspect_likert_cols(frame, aspect)
+        if not cols:
+            return "Unknown"
+        try:
+            vals = pd.to_numeric(pd.Series([row_data.get(c) for c in cols]), errors="coerce").dropna()
+            if len(vals) == 0:
+                return "Unknown"
+            return likert_average_to_sentiment(vals.mean())
+        except Exception:
+            return "Unknown"
+
+    def _summarize_aspect_from_likert(frame: pd.DataFrame, aspect: str) -> Optional[Dict[str, object]]:
+        cols = _aspect_likert_cols(frame, aspect)
+        if not cols:
+            return None
+
+        num = frame[cols].apply(pd.to_numeric, errors="coerce")
+        has_data = num.notna().any(axis=1)
+        if int(has_data.sum()) == 0:
+            return None
+
+        vals = num.mean(axis=1, skipna=True)
+        labels = vals[has_data].apply(likert_average_to_sentiment)
+        counts = Counter([x for x in labels.tolist() if x != "Unknown"])
+        pos = int(counts.get("Positif", 0))
+        net = int(counts.get("Netral", 0))
+        neg = int(counts.get("Negatif", 0))
+        total_aspek = pos + net + neg
+        if total_aspek <= 0:
+            return None
+
+        return {
+            "aspek": aspect.capitalize(),
+            "positif": pos,
+            "netral": net,
+            "negatif": neg,
+            "total": total_aspek,
+            "persen_negatif": float(round((neg / total_aspek) * 100, 1)),
+        }
 
     non_user_top_kata = []
     non_user_insights = {
@@ -774,10 +916,13 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
         low_markers = ["tidak tertarik", "gak mau", "nggak mau", "belum minat", "tidak mau"]
 
         intent_col = None
+        intent_source = "text_fallback"
+        intent_confidence = "low"
         for c in non_user_frame.columns:
             cl = c.lower().strip()
             if any(k in cl for k in ["minat", "niat", "tertarik", "kemungkinan mencoba"]) and is_likert_series(non_user_frame[c]):
                 intent_col = c
+                intent_source = "likert_column"
                 break
 
         for raw_text in non_user_texts:
@@ -816,6 +961,12 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
                 intent_score = max(0.0, min(100.0, ((mean_intent - 1.0) / 4.0) * 100.0))
                 intent_high = int((intent_vals >= 4).sum())
                 intent_low = int((intent_vals <= 2).sum())
+                if len(intent_vals) >= MIN_TOTAL_RESPONDENTS:
+                    intent_confidence = "high"
+                elif len(intent_vals) >= MIN_VARIANT_SAMPLE:
+                    intent_confidence = "medium"
+                else:
+                    intent_confidence = "low"
         else:
             total_non_user_text = max(len(non_user_texts), 1)
             intent_score = max(0.0, min(100.0, ((intent_high - intent_low) / total_non_user_text) * 100 + 50))
@@ -832,6 +983,8 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             "level": intent_level,
             "high_count": int(intent_high),
             "low_count": int(intent_low),
+            "source": intent_source,
+            "confidence": intent_confidence,
         }
 
         rekomendasi_aksi = []
@@ -1082,64 +1235,96 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
         best_model_name = None
         # keep training_reason if it was set earlier so caller understands why
 
-    # 5b) ABSA - Aspect extraction dari text
+    # 5b) ABSA - Aspect extraction from text and aspect-specific comment columns
     aspect_sentiment_from_text: Dict[str, Counter] = {}
-    # we'll also gather negative tokens per aspect so recommendations/isu bisa realistis
+    # gather negative tokens per aspect so recommendations/isu reflect actual complaints
     aspect_tokens: Dict[str, List[str]] = {}
-    # and capture any explicit suggestions found in a suggestion column
+    # capture any explicit suggestions found in suggestion column
     aspect_suggestions: Dict[str, List[str]] = {}
-    
-    if text_col:
-        for idx, row in df.iterrows():
-            text_val = row[text_col]
-            # Skip if text is null/empty
-            if pd.isna(text_val) or str(text_val).strip().lower() == "nan" or str(text_val).strip() == "":
-                continue
-            text = str(text_val).strip()
 
-            # Extract aspects dari text
-            aspects = extract_aspects_from_text(text)
+    text_sources: List[tuple[str, Optional[str], str]] = []
+    if text_col and text_col in df.columns:
+        text_sources.append((text_col, None, "main"))
+    for asp in ["aroma", "ketahanan", "kemasan"]:
+        comment_src = aspect_comment_cols.get(asp)
+        if comment_src and comment_src in df.columns and comment_src != text_col:
+            text_sources.append((comment_src, asp, "comment"))
+        issue_src = aspect_issue_cols.get(asp)
+        if issue_src and issue_src in df.columns and issue_src != text_col and issue_src != comment_src:
+            text_sources.append((issue_src, asp, "issue"))
 
-            # Determine sentiment: prefer model prediction if available, otherwise likert rule
-            sentiment = "Unknown"
-            if model_trained and "predicted_sentiment" in df.columns:
-                try:
-                    sentiment = row.get("predicted_sentiment", "Unknown")
-                except:
-                    sentiment = "Unknown"
-            else:
-                if likert_cols:
-                    try:
-                        # convert to Series so dropna() works
-                        scores = pd.to_numeric(pd.Series([row[c] for c in likert_cols]), errors="coerce").dropna()
-                        if len(scores) > 0:
-                            mean_score = scores.mean()
-                            sentiment = likert_to_sentiment(mean_score)
-                    except:
+    if text_sources:
+        for _, row in df.iterrows():
+            row_aspect_sentiments: Dict[str, List[str]] = {}
+            row_aspect_texts: Dict[str, List[str]] = {}
+
+            for src_col, forced_aspect, src_kind in text_sources:
+                text_val = row.get(src_col)
+                if pd.isna(text_val):
+                    continue
+                text = str(text_val).strip()
+                if not text or text.lower() == "nan":
+                    continue
+
+                aspects = [forced_aspect] if forced_aspect else extract_aspects_from_text(text)
+                if not aspects:
+                    continue
+
+                if forced_aspect:
+                    if src_kind == "issue":
+                        sentiment = infer_issue_text_sentiment(text, forced_aspect)
+                    else:
                         sentiment = "Unknown"
+                    if sentiment == "Unknown":
+                        sentiment = _sentiment_from_row_aspect_likert(row, forced_aspect, df)
+                    if sentiment == "Unknown":
+                        sentiment = _infer_text_sentiment_for_aspect(text, forced_aspect)
+                else:
+                    sentiment = "Unknown"
+                    if model_trained and "predicted_sentiment" in df.columns:
+                        try:
+                            sentiment = row.get("predicted_sentiment", "Unknown")
+                        except Exception:
+                            sentiment = "Unknown"
+                    if sentiment == "Unknown" and likert_cols:
+                        try:
+                            scores = pd.to_numeric(pd.Series([row[c] for c in likert_cols]), errors="coerce").dropna()
+                            if len(scores) > 0:
+                                sentiment = likert_average_to_sentiment(scores.mean())
+                        except Exception:
+                            sentiment = "Unknown"
 
-
-            # Add to aspect-sentiment counts
-            if sentiment != "Unknown":
                 for aspect in aspects:
-                    if aspect not in aspect_sentiment_from_text:
-                        aspect_sentiment_from_text[aspect] = Counter()
-                    aspect_sentiment_from_text[aspect][sentiment] += 1
+                    row_aspect_texts.setdefault(aspect, []).append(text)
+                    resolved_sentiment = sentiment
+                    if resolved_sentiment == "Unknown":
+                        resolved_sentiment = _infer_text_sentiment_for_aspect(text, aspect)
+                    if resolved_sentiment != "Unknown":
+                        row_aspect_sentiments.setdefault(aspect, []).append(resolved_sentiment)
 
-                    # if negative, capture tokens for that aspect
-                    if sentiment == "Negatif":
-                        toks = tokenize_id(text)
-                        if toks:
-                            aspect_tokens.setdefault(aspect, []).extend(toks)
+            for aspect, sentiments in row_aspect_sentiments.items():
+                final_sentiment = _coalesce_sentiments(sentiments)
+                if final_sentiment == "Unknown":
+                    continue
 
-                    # collect suggestion text if column exists
-                    if suggestion_col and pd.notna(row.get(suggestion_col)):
-                        stext = str(row.get(suggestion_col)).strip()
-                        if stext:
-                            # remove leading cue words like "saran:" or "rekomendasi"
-                            clean = re.sub(r'^(saran|rekomendasi?)[:\-\s]+', '', stext, flags=re.I).strip()
-                            if clean:
-                                aspect_suggestions.setdefault(aspect, []).append(clean)
+                if aspect not in aspect_sentiment_from_text:
+                    aspect_sentiment_from_text[aspect] = Counter()
+                aspect_sentiment_from_text[aspect][final_sentiment] += 1
+
+                if final_sentiment == "Negatif":
+                    toks = []
+                    for txt in row_aspect_texts.get(aspect, []):
+                        toks.extend(tokenize_id(txt))
+                    if toks:
+                        aspect_tokens.setdefault(aspect, []).extend(toks)
+
+            if suggestion_col and pd.notna(row.get(suggestion_col)):
+                stext = str(row.get(suggestion_col)).strip()
+                if stext:
+                    clean = re.sub(r'^(saran|rekomendasi?)[:\-\s]+', '', stext, flags=re.I).strip()
+                    if clean:
+                        for aspect in row_aspect_texts.keys():
+                            aspect_suggestions.setdefault(aspect, []).append(clean)
     
     # Fallback: jika tidak ada text_col, buat dari likert columns aja
     if not aspect_sentiment_from_text and likert_cols:
@@ -1168,13 +1353,15 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
     absa_aspect_sentiment.sort(key=lambda x: x["negatif"], reverse=True)
 
     # 6) sentimen per aspek (breakdown untuk chart)
-    # Prioritas: gunakan ABSA jika ada, kalau tidak gunakan likert
+    # Prioritas: gunakan ABSA untuk aroma/kemasan/ketahanan, lalu fallback ke likert aspek
     sentimen_per_aspek = []
-    
-    # Jika ada ABSA data, gunakan itu
+    desired_display_aspects = ["aroma", "kemasan", "ketahanan"]
+
     if absa_aspect_sentiment:
-        sentimen_per_aspek = absa_aspect_sentiment[:3]  # Top 3 aspects
-    # Fallback: gunakan likert columns
+        sentimen_per_aspek = [
+            x for x in absa_aspect_sentiment
+            if str(x.get("aspek", "")).strip().lower() in desired_display_aspects
+        ]
     else:
         for aspek, counts in aspect_sent_counts.items():
             pos = counts.get("Positif", 0)
@@ -1192,21 +1379,24 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
                     "persen_negatif": float(pct_neg)
                 })
         sentimen_per_aspek.sort(key=lambda x: x["negatif"], reverse=True)
-    
-    # Ensure the dashboard always shows the three requested aspects (aroma, kemasan, ketahanan)
-    # even if they have zero counts — this makes the frontend consistent.
-    desired_display_aspects = ["aroma", "kemasan", "ketahanan"]
+
+    # Ensure the dashboard always shows aroma/kemasan/ketahanan.
+    # If ABSA text misses one aspect, fallback to aspect-specific likert aggregation.
     existing_aspek_keys = {a['aspek'].lower(): a for a in sentimen_per_aspek}
     for da in desired_display_aspects:
         if da not in existing_aspek_keys:
-            sentimen_per_aspek.append({
-                "aspek": da.capitalize(),
-                "positif": 0,
-                "netral": 0,
-                "negatif": 0,
-                "total": 0,
-                "persen_negatif": 0.0
-            })
+            fallback_metric = _summarize_aspect_from_likert(df, da)
+            if fallback_metric:
+                sentimen_per_aspek.append(fallback_metric)
+            else:
+                sentimen_per_aspek.append({
+                    "aspek": da.capitalize(),
+                    "positif": 0,
+                    "netral": 0,
+                    "negatif": 0,
+                    "total": 0,
+                    "persen_negatif": 0.0
+                })
 
     # Normalize aspek names to capitalized form for frontend
     for s in sentimen_per_aspek:
@@ -1998,7 +2188,7 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             vals = pd.to_numeric(pd.Series([row_data.get(c) for c in likert_cols]), errors="coerce").dropna()
             if len(vals) == 0:
                 return "Unknown"
-            return likert_to_sentiment(vals.mean())
+            return likert_average_to_sentiment(vals.mean())
         except Exception:
             return "Unknown"
 
@@ -2021,13 +2211,24 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             for asp in desired
         }
 
+        segment_text_sources: List[tuple[str, Optional[str], str]] = []
+        if text_col and text_col in frame.columns:
+            segment_text_sources.append((text_col, None, "main"))
+        for asp in desired:
+            comment_src = aspect_comment_cols.get(asp)
+            if comment_src and comment_src in frame.columns and comment_src != text_col:
+                segment_text_sources.append((comment_src, asp, "comment"))
+            issue_src = aspect_issue_cols.get(asp)
+            if issue_src and issue_src in frame.columns and issue_src != text_col and issue_src != comment_src:
+                segment_text_sources.append((issue_src, asp, "issue"))
+
         def _row_sentiment_for_aspect(row_data, asp: str) -> str:
             asp_cols = _aspect_likert_columns(frame, asp)
             if asp_cols:
                 try:
                     vals = pd.to_numeric(pd.Series([row_data.get(c) for c in asp_cols]), errors="coerce").dropna()
                     if len(vals) > 0:
-                        return likert_to_sentiment(vals.mean())
+                        return likert_average_to_sentiment(vals.mean())
                 except Exception:
                     pass
             return _row_sentiment(row_data)
@@ -2046,50 +2247,99 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
 
             return base_sent
 
+        def _segment_aspect_metric_from_likert(asp: str) -> Optional[Dict[str, object]]:
+            cols = _aspect_likert_columns(frame, asp)
+            if not cols:
+                return None
+
+            num = frame[cols].apply(pd.to_numeric, errors="coerce")
+            has_data = num.notna().any(axis=1)
+            if int(has_data.sum()) == 0:
+                return None
+
+            vals = num.mean(axis=1, skipna=True)
+            labels_local = vals[has_data].apply(likert_average_to_sentiment)
+            cnt = Counter([x for x in labels_local.tolist() if x != "Unknown"])
+
+            pos = int(cnt.get("Positif", 0))
+            net = int(cnt.get("Netral", 0))
+            neg = int(cnt.get("Negatif", 0))
+            tot = pos + net + neg
+            if tot <= 0:
+                return None
+
+            return {
+                "aspek": asp.capitalize(),
+                "positif": pos,
+                "netral": net,
+                "negatif": neg,
+                "total": tot,
+                "persen_negatif": float(round((neg / tot) * 100, 1)),
+            }
+
         if total > 0:
             for _, row_data in frame.iterrows():
                 row_sentiment = _row_sentiment(row_data)
                 if row_sentiment != "Unknown":
                     labels.append(row_sentiment)
 
-                if not text_col or text_col not in frame.columns:
+                if not segment_text_sources:
                     continue
 
-                text_val = row_data.get(text_col)
-                if pd.isna(text_val) or str(text_val).strip().lower() == "nan" or str(text_val).strip() == "":
-                    continue
+                row_aspect_sentiments: Dict[str, List[str]] = {}
+                row_aspect_texts: Dict[str, List[str]] = {}
 
-                text = str(text_val).strip()
-                aspects = extract_aspects_from_text(text)
-                local_text_tokens.extend(tokenize_id(text))
-
-                for asp in aspects:
-                    asp_sentiment = _resolve_aspect_sentiment(row_data, asp, text)
-                    if asp_sentiment == "Unknown":
+                for src_col, forced_aspect, src_kind in segment_text_sources:
+                    text_val = row_data.get(src_col)
+                    if pd.isna(text_val):
                         continue
 
-                    if asp not in local_aspect_counts:
-                        local_aspect_counts[asp] = Counter()
-                    local_aspect_counts[asp][asp_sentiment] += 1
+                    text = str(text_val).strip()
+                    if not text or text.lower() == "nan":
+                        continue
 
-                    if asp_sentiment == "Negatif":
-                        toks = tokenize_id(text)
+                    local_text_tokens.extend(tokenize_id(text))
+                    aspects = [forced_aspect] if forced_aspect else extract_aspects_from_text(text)
+                    if not aspects:
+                        continue
+
+                    for asp in aspects:
+                        if src_kind == "issue" and forced_aspect:
+                            asp_sentiment = infer_issue_text_sentiment(text, asp)
+                            if asp_sentiment == "Unknown":
+                                asp_sentiment = _resolve_aspect_sentiment(row_data, asp, text)
+                        else:
+                            asp_sentiment = _resolve_aspect_sentiment(row_data, asp, text)
+                        if asp_sentiment == "Unknown":
+                            continue
+                        row_aspect_sentiments.setdefault(asp, []).append(asp_sentiment)
+                        row_aspect_texts.setdefault(asp, []).append(text)
+
+                for asp, sentiments in row_aspect_sentiments.items():
+                    final_sentiment = _coalesce_sentiments(sentiments)
+                    if final_sentiment == "Unknown":
+                        continue
+
+                    local_aspect_counts.setdefault(asp, Counter())[final_sentiment] += 1
+                    if final_sentiment == "Negatif":
+                        toks = []
+                        for txt in row_aspect_texts.get(asp, []):
+                            toks.extend(tokenize_id(txt))
                         if toks:
                             local_aspect_tokens.setdefault(asp, []).extend(toks)
 
                 for asp in desired:
-                    if asp in aspects:
-                        asp_sentiment = _resolve_aspect_sentiment(row_data, asp, text)
-                    else:
-                        asp_sentiment = "Unknown"
-
+                    sentiments = row_aspect_sentiments.get(asp, [])
+                    asp_sentiment = _coalesce_sentiments(sentiments)
                     if asp_sentiment in ("Positif", "Negatif"):
                         key = "positif" if asp_sentiment == "Positif" else "negatif"
                         count_key = "jumlah_positif" if key == "positif" else "jumlah_negatif"
                         drilldown[asp][count_key] += 1
                         current = drilldown[asp][key]
-                        if text not in current and len(current) < DRILLDOWN_MAX_EXAMPLES:
-                            current.append(text)
+                        sample_texts = row_aspect_texts.get(asp, [])
+                        text_pick = sample_texts[0] if sample_texts else ""
+                        if text_pick and text_pick not in current and len(current) < DRILLDOWN_MAX_EXAMPLES:
+                            current.append(text_pick)
 
         dist = Counter(labels)
         total_labeled = sum(dist.values()) if dist else 0
@@ -2114,14 +2364,18 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
         existing = {x["aspek"].lower() for x in sentimen_aspek}
         for asp in desired:
             if asp not in existing:
-                sentimen_aspek.append({
-                    "aspek": asp.capitalize(),
-                    "positif": 0,
-                    "netral": 0,
-                    "negatif": 0,
-                    "total": 0,
-                    "persen_negatif": 0.0,
-                })
+                fallback_metric = _segment_aspect_metric_from_likert(asp)
+                if fallback_metric:
+                    sentimen_aspek.append(fallback_metric)
+                else:
+                    sentimen_aspek.append({
+                        "aspek": asp.capitalize(),
+                        "positif": 0,
+                        "netral": 0,
+                        "negatif": 0,
+                        "total": 0,
+                        "persen_negatif": 0.0,
+                    })
         sentimen_aspek.sort(key=lambda x: ((x["aspek"].lower() not in desired), -x["negatif"]))
 
         prioritas_local = []
@@ -2486,6 +2740,42 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
     mode_analisis = "sudah_pakai" if filter_applied else "semua_data"
     default_segment_view = "used" if (usage_col and int(used_mask.sum()) > 0) else "all"
 
+    def _non_empty_ratio(frame: pd.DataFrame, column_name: Optional[str]) -> float:
+        if not column_name or column_name not in frame.columns or len(frame) == 0:
+            return 0.0
+        s = frame[column_name].astype(str).str.strip()
+        valid = (s != "") & (s.str.lower() != "nan")
+        return float(valid.mean())
+
+    def _likert_coverage_ratio(frame: pd.DataFrame, columns: List[str]) -> float:
+        cols = [c for c in columns if c in frame.columns]
+        if not cols or len(frame) == 0:
+            return 0.0
+        num = frame[cols].apply(pd.to_numeric, errors="coerce")
+        return float(num.notna().any(axis=1).mean())
+
+    aspect_quality = {}
+    for asp in ["aroma", "kemasan", "ketahanan"]:
+        comment_col = aspect_comment_cols.get(asp)
+        issue_col = aspect_issue_cols.get(asp)
+        asp_likert_cols = _aspect_likert_cols(df_raw, asp)
+        aspect_quality[asp] = {
+            "comment_col": comment_col,
+            "comment_coverage": round(_non_empty_ratio(df_raw, comment_col), 4),
+            "issue_col": issue_col,
+            "issue_coverage": round(_non_empty_ratio(df_raw, issue_col), 4),
+            "likert_cols": asp_likert_cols,
+            "likert_coverage": round(_likert_coverage_ratio(df_raw, asp_likert_cols), 4),
+            "source_ready": bool(comment_col or issue_col or len(asp_likert_cols) > 0),
+        }
+
+    data_quality = {
+        "text_col": text_col,
+        "text_coverage": round(_non_empty_ratio(df_raw, text_col), 4),
+        "likert_coverage": round(_likert_coverage_ratio(df_raw, likert_cols), 4),
+        "aspect_quality": aspect_quality,
+    }
+
     # Untuk segmen non-user, rekomendasi segmen aktif harus berbasis akuisisi,
     # bukan fallback aspek produk aroma/kemasan/ketahanan.
     if usage_col and total_belum_pakai > 0:
@@ -2512,6 +2802,34 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
         health_issues.append(f"Model ML belum optimal: {training_reason}")
     elif model_trained and best_f1 is not None and best_f1 < 0.65:
         health_issues.append("F1 Score model masih di bawah 65%. Pertimbangkan tambah data dan pembersihan teks.")
+
+    if data_quality.get("text_coverage", 0.0) < 0.25:
+        health_issues.append(
+            "Cakupan kolom komentar utama rendah (<25%). Validasi kembali kolom komentar agar ABSA tidak bias."
+        )
+    if data_quality.get("likert_coverage", 0.0) < 0.50:
+        health_issues.append(
+            "Cakupan nilai Likert masih rendah (<50%). Persentase sentimen bisa kurang stabil."
+        )
+    for asp_name, aq in data_quality.get("aspect_quality", {}).items():
+        if not aq.get("source_ready", False):
+            health_issues.append(
+                f"Aspek {asp_name} belum memiliki sumber data yang memadai (komentar/issue/likert)."
+            )
+
+    analysis_meta = {
+        "engine_version": "business-ready-v2",
+        "selected_columns": {
+            "text_col": text_col,
+            "suggestion_col": suggestion_col,
+            "usage_col": usage_col,
+            "period_col": period_col,
+            "variant_col": variant_col,
+            "aspect_comment_cols": aspect_comment_cols,
+            "aspect_issue_cols": aspect_issue_cols,
+        },
+        "data_quality": data_quality,
+    }
 
     business_alerts = []
     for asp in sentimen_per_aspek[:3]:
@@ -2553,6 +2871,7 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
         "kemasan_rekomendasi_global": kemasan_reco_global,
         "kemasan_plan_global": kemasan_plan_global,
         "aspect_comment_cols": aspect_comment_cols,
+        "aspect_issue_cols": aspect_issue_cols,
     }
     variant_analysis_non_user = {
         "variant_col": variant_col,
@@ -2572,6 +2891,7 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             "data": {"context": "Non-user", "negatif": 0, "total": 0, "persen_negatif": 0.0},
         },
         "aspect_comment_cols": aspect_comment_cols,
+        "aspect_issue_cols": aspect_issue_cols,
     }
 
     return {
@@ -2606,6 +2926,7 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             "cv_svm_std": cv_svm_std,
             "csv_url_dipakai": csv_url,
             "suggestion_col": suggestion_col,
+            "aspect_issue_cols": aspect_issue_cols,
             "usage_col": usage_col,
             "analysis_mode": mode_analisis,
             "training_reason": training_reason,
@@ -2635,6 +2956,7 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             "period_detected": bool(period_col),
             "granularity": "monthly",
         },
+        "analysis_meta": analysis_meta,
         "health_check": {
             "status": "ok" if not health_issues else "warning",
             "issues": health_issues,
