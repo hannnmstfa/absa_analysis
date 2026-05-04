@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 import re
 import requests
@@ -6,11 +7,16 @@ from io import StringIO
 from collections import Counter
 from typing import Dict, List, Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_validate, GridSearchCV
+from sklearn.naive_bayes import MultinomialNB, ComplementNB
 from sklearn.svm import LinearSVC
-from sklearn.metrics import accuracy_score, f1_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, f1_score, precision_recall_fscore_support, precision_score, recall_score, make_scorer
 from sklearn.pipeline import Pipeline
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+
+_stemmer_factory = StemmerFactory()
+_stemmer = _stemmer_factory.create_stemmer()
+
 
 
 MIN_TOTAL_RESPONDENTS = 30
@@ -260,8 +266,8 @@ def guess_text_column(df: pd.DataFrame, exclude_cols: List[str] | None = None) -
 
 _STOPWORDS_ID = {
     "yang","dan","di","ke","dari","untuk","dengan","atau","pada","ini","itu","saya","aku","kami","kita",
-    "tidak","ga","gak","nggak","ya","yg","aja","kok","banget","sih","udah","sudah","karena","juga","jadi",
-    "lebih","kurang","sangat","sekali","nya","deh","dong","lah","pun","dalam","oleh","buat","bagi","ada",
+    "ya","yg","aja","kok","banget","sih","udah","sudah","karena","juga","jadi",
+    "lebih","sangat","sekali","nya","deh","dong","lah","pun","dalam","oleh","buat","bagi","ada",
     "the","a","an","to","of","in","is","are"
 }
 
@@ -394,9 +400,12 @@ def tokenize_id(text: str) -> List[str]:
 # --- text cleaning / preprocessing (lightweight, no external downloads) ---
 normalization_dict = {
     "ga": "tidak", "gak": "tidak", "gk": "tidak", "nggak": "tidak",
-    "enggak": "tidak", "tdk": "tidak", "bgt": "banget", "aja": "saja",
-    "tpi": "tapi", "tp": "tapi", "krn": "karena", "karna": "karena",
-    "dgn": "dengan", "dg": "dengan"
+    "enggak": "tidak", "tdk": "tidak", "bgt": "banget", "bgtt": "banget",
+    "bangett": "banget", "aja": "saja", "tpi": "tapi", "tp": "tapi",
+    "krn": "karena", "karna": "karena", "dgn": "dengan", "dg": "dengan",
+    "cepet": "cepat", "cpt": "cepat", "kureng": "kurang", "krg": "kurang",
+    "wangiii": "wangi", "wangy": "wangi", "mantul": "mantap", "manteb": "mantap",
+    "bgs": "bagus", "bagusss": "bagus", "awettt": "awet"
 }
 
 def _remove_url(text: str) -> str:
@@ -444,6 +453,7 @@ def build_clean_text_column(frame: pd.DataFrame, src_col: str, target_col: str =
     def _process_row(s: str) -> str:
         toks = [t for t in s.split() if len(t) > 2 and t not in _STOPWORDS_ID]
         toks = _normalize_tokens_list(toks)
+        toks = [_stemmer.stem(t) for t in toks]
         toks = [t for t in toks if t not in _STOPWORDS_ID]
         return " ".join(toks)
 
@@ -461,8 +471,16 @@ def _download_csv_text(csv_url: str, timeout_sec: int = 25) -> str:
         "Accept": "text/csv,text/plain,*/*",
     }
     try:
-        r = requests.get(csv_url, headers=headers, timeout=timeout_sec, allow_redirects=True)
+        r = requests.get(csv_url, headers=headers, timeout=timeout_sec, allow_redirects=True, stream=True)
         r.raise_for_status()
+        MAX_SIZE = 5 * 1024 * 1024 # 5 MB limit
+        content = b""
+        for chunk in r.iter_content(chunk_size=8192):
+            if chunk:
+                content += chunk
+                if len(content) > MAX_SIZE:
+                    raise ValueError(f"Ukuran file CSV melebihi batas maksimal ({MAX_SIZE // 1024 // 1024} MB).")
+        r_text = content.decode('utf-8', errors='replace')
     except requests.exceptions.HTTPError as e:
         if r.status_code == 400:
             raise ValueError(
@@ -497,13 +515,13 @@ def _download_csv_text(csv_url: str, timeout_sec: int = 25) -> str:
         )
 
     # validasi cepat: kalau HTML, biasanya ada "<html" di awal
-    head = r.text[:200].lower()
+    head = r_text[:200].lower()
     if "<html" in head or "accounts.google.com" in head:
         raise ValueError(
             "Link tidak menghasilkan CSV. Pastikan Sheet publik (Anyone with the link) "
             "dan URL export format=csv. Cek juga gid tab yang benar."
         )
-    return r.text
+    return r_text
 
 def load_csv_text(csv_url: str) -> str:
     csv_url = build_csv_export_url(csv_url)
@@ -517,7 +535,23 @@ def load_csv_text(csv_url: str) -> str:
     r.raise_for_status()
     return r.text
 
+_ANALYSIS_CACHE = {}
+CACHE_TTL = 300
+
 def run_analysis_from_csv_url(csv_url: str) -> dict:
+    import time
+    cache_key = build_csv_export_url(csv_url)
+    current_time = time.time()
+    if cache_key in _ANALYSIS_CACHE:
+        cached_result, timestamp = _ANALYSIS_CACHE[cache_key]
+        if current_time - timestamp < CACHE_TTL:
+            return cached_result
+    
+    result = _internal_run_analysis_from_csv_url(csv_url)
+    _ANALYSIS_CACHE[cache_key] = (result, current_time)
+    return result
+
+def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
     csv_url = build_csv_export_url(csv_url)
 
     # 1) download & parse
@@ -1087,6 +1121,11 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
     best_model = None
     best_acc = 0.0
     best_f1 = None
+    best_eval_source = None
+    best_eval_source_label = None
+    modeling_rows = 0
+    label_distribution = {}
+    cv_folds_used = 0
     acc_nb = None
     acc_svm = None
     f1_nb = None
@@ -1099,6 +1138,14 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
     cv_nb_std = None
     cv_svm_mean = None
     cv_svm_std = None
+    cv_nb_f1_mean = None
+    cv_nb_f1_std = None
+    cv_svm_f1_mean = None
+    cv_svm_f1_std = None
+    holdout_nb_accuracy = None
+    holdout_svm_accuracy = None
+    holdout_nb_f1 = None
+    holdout_svm_f1 = None
     training_reason = None  # explanation why training skipped/fails
 
     # Build df_model only if we have a text column (or cleaned text) and at least one likert column
@@ -1122,6 +1169,11 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             df_model[modeling_text_col] = df_model[modeling_text_col].astype(str).fillna("").str.strip()
             df_model["label"] = pd.to_numeric(df_model[LABEL_COL], errors='coerce').apply(_likert_label)
             df_model = df_model[(df_model[modeling_text_col].str.len() > 0) & (df_model["label"].notna())].reset_index(drop=True)
+            modeling_rows = int(len(df_model))
+            label_distribution = {
+                str(k): int(v)
+                for k, v in Counter(df_model["label"].astype(str).tolist()).items()
+            }
 
             if len(df_model) < 5:
                 training_reason = f"Data terlalu sedikit ({len(df_model)} baris). Minimal 5 diperlukan."
@@ -1132,7 +1184,23 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
                 X = df_model[modeling_text_col].astype(str).values
                 y = df_model["label"].values
 
-                # helper: safe split with stratify when possible
+                def _build_model_candidates():
+                    vectorizer = {
+                        "max_features": 8000,
+                        "ngram_range": (1, 2),
+                        "sublinear_tf": True,
+                    }
+                    return {
+                        "Naive Bayes": GridSearchCV(Pipeline([
+                            ("tfidf", TfidfVectorizer(**vectorizer)),
+                            ("clf", MultinomialNB()),
+                        ]), param_grid={'clf__alpha': [0.1, 0.5, 1.0, 2.0]}, cv=3, scoring='f1_weighted', n_jobs=1),
+                        "SVM": GridSearchCV(Pipeline([
+                            ("tfidf", TfidfVectorizer(**vectorizer)),
+                            ("clf", LinearSVC(random_state=42, max_iter=5000, class_weight="balanced")),
+                        ]), param_grid={'clf__C': [0.1, 0.5, 1.0, 5.0]}, cv=3, scoring='f1_weighted', n_jobs=1),
+                    }
+
                 def safe_train_test_split(Xi, yi, test_size=0.2, random_state=42):
                     counts = Counter(yi)
                     can_stratify = all(v >= 2 for v in counts.values()) and len(counts) >= 2
@@ -1140,81 +1208,112 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
                         return train_test_split(Xi, yi, test_size=test_size, random_state=random_state, stratify=yi)
                     return train_test_split(Xi, yi, test_size=test_size, random_state=random_state)
 
-                # perform split
-                X_train, X_test, y_train, y_test = safe_train_test_split(X, y, test_size=0.2, random_state=42)
+                def _holdout_metrics(pipe: Pipeline) -> Dict[str, float]:
+                    X_train, X_test, y_train, y_test = safe_train_test_split(X, y, test_size=0.2, random_state=42)
+                    pipe.fit(X_train, y_train)
+                    pred = pipe.predict(X_test)
+                    prec, rec, _, _ = precision_recall_fscore_support(
+                        y_test,
+                        pred,
+                        average="weighted",
+                        zero_division=0,
+                    )
+                    return {
+                        "accuracy": float(accuracy_score(y_test, pred)),
+                        "f1_weighted": float(f1_score(y_test, pred, average="weighted", zero_division=0)),
+                        "precision_weighted": float(prec),
+                        "recall_weighted": float(rec),
+                    }
 
-                # TF-IDF and train models
-                tfidf = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
-                X_train_tfidf = tfidf.fit_transform(X_train)
-                X_test_tfidf = tfidf.transform(X_test)
+                def _cv_metrics(pipe: Pipeline, folds: int) -> Optional[Dict[str, float]]:
+                    if folds < 2:
+                        return None
 
-                # Train NB
-                nb_model = MultinomialNB()
-                nb_model.fit(X_train_tfidf, y_train)
-                y_pred_nb = nb_model.predict(X_test_tfidf)
-                acc_nb = float(accuracy_score(y_test, y_pred_nb))
-                f1_nb = float(f1_score(y_test, y_pred_nb, average='weighted', zero_division=0))
-                
-                # Calculate precision & recall for NB
-                prec, rec, _, _ = precision_recall_fscore_support(y_test, y_pred_nb, average='weighted', zero_division=0)
-                precision_nb = float(prec)
-                recall_nb = float(rec)
+                    scoring = {
+                        "accuracy": "accuracy",
+                        "f1_weighted": make_scorer(f1_score, average="weighted", zero_division=0),
+                        "precision_weighted": make_scorer(precision_score, average="weighted", zero_division=0),
+                        "recall_weighted": make_scorer(recall_score, average="weighted", zero_division=0),
+                    }
+                    cv = StratifiedKFold(n_splits=folds, shuffle=True, random_state=42)
+                    scores = cross_validate(pipe, X, y, cv=cv, scoring=scoring, n_jobs=1)
+                    out: Dict[str, float] = {}
+                    for key in scoring.keys():
+                        values = scores.get(f"test_{key}", [])
+                        out[key] = _finite_float_or_none(values.mean()) if len(values) else None
+                        out[f"{key}_std"] = _finite_float_or_none(values.std()) if len(values) else None
+                    return out
 
-                # Train SVM (LinearSVC)
-                svm_model = LinearSVC(random_state=42, max_iter=2000)
-                svm_model.fit(X_train_tfidf, y_train)
-                y_pred_svm = svm_model.predict(X_test_tfidf)
-                acc_svm = float(accuracy_score(y_test, y_pred_svm))
-                f1_svm = float(f1_score(y_test, y_pred_svm, average='weighted', zero_division=0))
-                
-                # Calculate precision & recall for SVM
-                prec, rec, _, _ = precision_recall_fscore_support(y_test, y_pred_svm, average='weighted', zero_division=0)
-                precision_svm = float(prec)
-                recall_svm = float(rec)
+                class_counts = Counter(y)
+                min_class_count = min(class_counts.values()) if class_counts else 0
+                cv_folds_used = int(min(5, min_class_count, len(y))) if len(y) > 1 else 0
 
-                # Choose best model (prioritize F1 Score as it's more robust)
-                if f1_nb >= f1_svm:
-                    best_model = nb_model
-                    best_model_name = "Naive Bayes"
-                    best_acc = acc_nb
-                    best_f1 = f1_nb
-                else:
-                    best_model = svm_model
-                    best_model_name = "SVM"
-                    best_acc = acc_svm
-                    best_f1 = f1_svm
+                model_candidates = _build_model_candidates()
+                holdout_results: Dict[str, Dict[str, float]] = {}
+                cv_results: Dict[str, Dict[str, float]] = {}
 
-                # cross-validation on full dataset for more reliable estimate
-                try:
-                    class_counts = Counter(y)
-                    min_class_count = min(class_counts.values()) if class_counts else 0
-                    cv_folds = min(5, min_class_count, len(y)) if len(y) > 1 else 0
+                for model_name, pipe in model_candidates.items():
+                    holdout_results[model_name] = _holdout_metrics(pipe)
+                    if cv_folds_used >= 2:
+                        try:
+                            cv_score = _cv_metrics(pipe, cv_folds_used)
+                            if cv_score:
+                                cv_results[model_name] = cv_score
+                        except Exception:
+                            pass
 
-                    pipe_nb = Pipeline([('tfidf', TfidfVectorizer(max_features=5000, ngram_range=(1,2))),
-                                        ('clf', MultinomialNB())])
-                    pipe_svm = Pipeline([('tfidf', TfidfVectorizer(max_features=5000, ngram_range=(1,2))),
-                                         ('clf', LinearSVC(random_state=42, max_iter=2000))])
+                use_cv_as_primary = len(cv_results) == len(model_candidates) and cv_folds_used >= 2
+                primary_results = cv_results if use_cv_as_primary else holdout_results
+                best_model_name = max(
+                    primary_results.keys(),
+                    key=lambda name: (
+                        float(primary_results[name].get("f1_weighted") or 0.0),
+                        float(primary_results[name].get("accuracy") or 0.0),
+                    ),
+                )
+                best_metrics = primary_results[best_model_name]
 
-                    if cv_folds >= 2:
-                        cv_nb_scores = cross_val_score(pipe_nb, X, y, cv=cv_folds, scoring='accuracy', n_jobs=-1)
-                        cv_svm_scores = cross_val_score(pipe_svm, X, y, cv=cv_folds, scoring='accuracy', n_jobs=-1)
-                    else:
-                        cv_nb_scores = []
-                        cv_svm_scores = []
-                except Exception:
-                    cv_nb_scores = []
-                    cv_svm_scores = []
+                best_eval_source = "stratified_cv" if use_cv_as_primary else "stratified_holdout"
+                best_eval_source_label = (
+                    f"Stratified {cv_folds_used}-Fold Cross-Validation"
+                    if use_cv_as_primary
+                    else "Stratified Holdout 80/20"
+                )
 
-                cv_nb_mean = _finite_float_or_none(cv_nb_scores.mean()) if len(cv_nb_scores) else None
-                cv_nb_std = _finite_float_or_none(cv_nb_scores.std()) if len(cv_nb_scores) else None
-                cv_svm_mean = _finite_float_or_none(cv_svm_scores.mean()) if len(cv_svm_scores) else None
-                cv_svm_std = _finite_float_or_none(cv_svm_scores.std()) if len(cv_svm_scores) else None
+                acc_nb = float(primary_results.get("Naive Bayes", {}).get("accuracy") or 0.0)
+                acc_svm = float(primary_results.get("SVM", {}).get("accuracy") or 0.0)
+                f1_nb = float(primary_results.get("Naive Bayes", {}).get("f1_weighted") or 0.0)
+                f1_svm = float(primary_results.get("SVM", {}).get("f1_weighted") or 0.0)
+                precision_nb = float(primary_results.get("Naive Bayes", {}).get("precision_weighted") or 0.0)
+                recall_nb = float(primary_results.get("Naive Bayes", {}).get("recall_weighted") or 0.0)
+                precision_svm = float(primary_results.get("SVM", {}).get("precision_weighted") or 0.0)
+                recall_svm = float(primary_results.get("SVM", {}).get("recall_weighted") or 0.0)
+                best_acc = float(best_metrics.get("accuracy") or 0.0)
+                best_f1 = float(best_metrics.get("f1_weighted") or 0.0)
 
-                # Predict labels for all available texts (use modeling column from original df)
+                holdout_nb_accuracy = _finite_float_or_none(holdout_results.get("Naive Bayes", {}).get("accuracy"))
+                holdout_svm_accuracy = _finite_float_or_none(holdout_results.get("SVM", {}).get("accuracy"))
+                holdout_nb_f1 = _finite_float_or_none(holdout_results.get("Naive Bayes", {}).get("f1_weighted"))
+                holdout_svm_f1 = _finite_float_or_none(holdout_results.get("SVM", {}).get("f1_weighted"))
+
+                if cv_results:
+                    cv_nb_mean = _finite_float_or_none(cv_results.get("Naive Bayes", {}).get("accuracy"))
+                    cv_nb_std = _finite_float_or_none(cv_results.get("Naive Bayes", {}).get("accuracy_std"))
+                    cv_svm_mean = _finite_float_or_none(cv_results.get("SVM", {}).get("accuracy"))
+                    cv_svm_std = _finite_float_or_none(cv_results.get("SVM", {}).get("accuracy_std"))
+                    cv_nb_f1_mean = _finite_float_or_none(cv_results.get("Naive Bayes", {}).get("f1_weighted"))
+                    cv_nb_f1_std = _finite_float_or_none(cv_results.get("Naive Bayes", {}).get("f1_weighted_std"))
+                    cv_svm_f1_mean = _finite_float_or_none(cv_results.get("SVM", {}).get("f1_weighted"))
+                    cv_svm_f1_std = _finite_float_or_none(cv_results.get("SVM", {}).get("f1_weighted_std"))
+
+                # Fit ulang model terbaik pada seluruh data berlabel agar prediksi ABSA
+                # memanfaatkan semua responden, sementara skor tetap dari evaluasi CV.
+                best_model = model_candidates[best_model_name]
+                best_model.fit(X, y)
+
                 try:
                     X_all = df[modeling_text_col].astype(str).fillna("").values
-                    X_all_tfidf = tfidf.transform(X_all)
-                    preds_all = best_model.predict(X_all_tfidf)
+                    preds_all = best_model.predict(X_all)
                 except Exception:
                     preds_all = [None] * len(df)
 
@@ -1518,15 +1617,13 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
     
     # If the ML pipeline produced a model, override the default accuracy
     # Prioritize F1 Score as primary metric (more robust for imbalanced data)
-    if f1_nb is not None and f1_svm is not None:
-        # Report the best model's F1 score as primary metric
-        best_f1_score = max(f1_nb, f1_svm)
-        akurasi_model = round(best_f1_score, 4)
-
-        if f1_nb >= f1_svm:
-            best_model_name = "Naive Bayes"
-        else:
-            best_model_name = "SVM"
+    if best_f1 is not None:
+        # Report the selected model's weighted F1 score as the primary metric.
+        # With enough data this comes from stratified cross-validation, not one
+        # lucky train/test split.
+        akurasi_model = round(float(best_f1), 4)
+    elif f1_nb is not None and f1_svm is not None:
+        akurasi_model = round(max(f1_nb, f1_svm), 4)
     
     # build confusion matrix for backwards compatibility / charting
     if absa_aspect_sentiment and len(absa_aspect_sentiment) > 0:
@@ -1685,7 +1782,7 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
 
     GENERIC_ISSUE_TOKENS = {
         "parfum", "produk", "wangi", "harum", "tahan", "lama", "bagus", "baik", "oke",
-        "enak", "suka", "banget", "sekali", "cukup", "lebih", "kurang", "udah", "sudah",
+        "enak", "suka", "banget", "sekali", "cukup", "lebih",  "udah", "sudah",
     }
 
     def _extract_issue_terms_for_aspect(aspect: str, tokens: List[str], limit: int = 5) -> List[str]:
@@ -2802,6 +2899,14 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
         health_issues.append(f"Model ML belum optimal: {training_reason}")
     elif model_trained and best_f1 is not None and best_f1 < 0.65:
         health_issues.append("F1 Score model masih di bawah 65%. Pertimbangkan tambah data dan pembersihan teks.")
+    if modeling_rows > 0 and label_distribution:
+        dominant_label, dominant_count = max(label_distribution.items(), key=lambda kv: kv[1])
+        dominant_ratio = dominant_count / modeling_rows
+        if dominant_ratio >= 0.75:
+            health_issues.append(
+                f"Distribusi label didominasi kelas {dominant_label} ({dominant_ratio:.1%}). "
+                "Pantau metrik per kelas agar kelas minoritas tidak terlewat."
+            )
 
     if data_quality.get("text_coverage", 0.0) < 0.25:
         health_issues.append(
@@ -2829,6 +2934,13 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             "aspect_issue_cols": aspect_issue_cols,
         },
         "data_quality": data_quality,
+        "model_evaluation": {
+            "source": best_eval_source,
+            "source_label": best_eval_source_label,
+            "modeling_rows": modeling_rows,
+            "label_distribution": label_distribution,
+            "cv_folds": cv_folds_used,
+        },
     }
 
     business_alerts = []
@@ -2905,6 +3017,11 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             "kolom_likert_terdeteksi": likert_cols,
             "model_trained": bool(model_trained),
             "model_used": best_model_name if best_model_name else "-",
+            "evaluation_source": best_eval_source,
+            "evaluation_source_label": best_eval_source_label,
+            "modeling_rows": modeling_rows,
+            "label_distribution": label_distribution,
+            "cv_folds": cv_folds_used,
             "best_model_accuracy": round(best_acc,4) if best_acc else 0.0,
             "accuracy_nb": round(acc_nb,4) if acc_nb is not None else 0.0,
             "accuracy_svm": round(acc_svm,4) if acc_svm is not None else 0.0,
@@ -2924,6 +3041,14 @@ def run_analysis_from_csv_url(csv_url: str) -> dict:
             "cv_nb_std": cv_nb_std,
             "cv_svm_mean": cv_svm_mean,
             "cv_svm_std": cv_svm_std,
+            "cv_nb_f1_mean": cv_nb_f1_mean,
+            "cv_nb_f1_std": cv_nb_f1_std,
+            "cv_svm_f1_mean": cv_svm_f1_mean,
+            "cv_svm_f1_std": cv_svm_f1_std,
+            "holdout_nb_accuracy": holdout_nb_accuracy,
+            "holdout_svm_accuracy": holdout_svm_accuracy,
+            "holdout_nb_f1": holdout_nb_f1,
+            "holdout_svm_f1": holdout_svm_f1,
             "csv_url_dipakai": csv_url,
             "suggestion_col": suggestion_col,
             "aspect_issue_cols": aspect_issue_cols,

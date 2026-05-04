@@ -2998,6 +2998,12 @@
           @if(data_get($kpi, 'model_trained'))
             <div class="mini mlStats">
               <div class="modelLine"><strong>Model:</strong> {{ data_get($kpi, 'model_used', '-') }}</div>
+              <div class="modelLine"><strong>Evaluasi:</strong>
+                {{ data_get($kpi, 'evaluation_source_label', '-') }}
+                @if((int) data_get($kpi, 'modeling_rows', 0) > 0)
+                  &bull; Data latih: {{ (int) data_get($kpi, 'modeling_rows', 0) }}
+                @endif
+              </div>
 
               <div class="metricRow">
                 <span class="metricName">F1 Score (weighted)</span>

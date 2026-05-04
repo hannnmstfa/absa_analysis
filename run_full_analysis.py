@@ -1,12 +1,16 @@
 import re
 import json
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+_stemmer_factory = StemmerFactory()
+_stemmer = _stemmer_factory.create_stemmer()
+
 import pandas as pd
 from io import StringIO
 import requests
 from collections import Counter
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import LinearSVC
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -16,6 +20,16 @@ from sklearn.pipeline import Pipeline
 URL = "https://docs.google.com/spreadsheets/d/1kZhMZ1PezsznYVfe3eLoH1UZKRdnOJKHzMDfR78sE_w/export?format=csv&gid=729413622"
 
 # --- helpers ---
+normalization_dict = {
+    "ga": "tidak", "gak": "tidak", "gk": "tidak", "nggak": "tidak",
+    "enggak": "tidak", "tdk": "tidak", "bgt": "banget", "bgtt": "banget",
+    "bangett": "banget", "aja": "saja", "tpi": "tapi", "tp": "tapi",
+    "krn": "karena", "karna": "karena", "dgn": "dengan", "dg": "dengan",
+    "cepet": "cepat", "cpt": "cepat", "kureng": "kurang", "krg": "kurang",
+    "wangiii": "wangi", "wangy": "wangi", "mantul": "mantap", "manteb": "mantap",
+    "bgs": "bagus", "bagusss": "bagus", "awettt": "awet"
+}
+
 
 def download_csv_text(csv_url: str, timeout_sec: int = 25) -> str:
     headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/csv,text/plain,*/*"}
@@ -35,7 +49,11 @@ def clean_text_basic(s: str) -> str:
     t = re.sub(r'@\w+', '', t)
     t = re.sub(r"[^a-zA-Z0-9\s]", ' ', t)
     t = re.sub(r"\d+", ' ', t)
-    return re.sub(r"\s+", ' ', t).strip().lower()
+    t = re.sub(r"\s+", ' ', t).strip().lower()
+    toks = t.split()
+    toks = [normalization_dict.get(tok, tok) for tok in toks]
+    toks = [_stemmer.stem(tok) for tok in toks]
+    return " ".join(toks)
 
 
 def tokenize(text: str):
@@ -191,12 +209,12 @@ if len(df_model) >= 5 and df_model['label'].nunique() >= 2:
     X_train_tfidf = tfidf.fit_transform(X_train)
     X_test_tfidf = tfidf.transform(X_test)
 
-    nb = MultinomialNB()
+    nb = GridSearchCV(MultinomialNB(), param_grid={'alpha': [0.1, 0.5, 1.0, 2.0]}, cv=3, scoring='f1_weighted')
     nb.fit(X_train_tfidf, y_train)
     y_pred_nb = nb.predict(X_test_tfidf)
     acc_nb = accuracy_score(y_test, y_pred_nb)
 
-    svm = LinearSVC(random_state=42, max_iter=2000)
+    svm = GridSearchCV(LinearSVC(random_state=42, max_iter=2000, class_weight='balanced'), param_grid={'C': [0.1, 0.5, 1.0, 5.0]}, cv=3, scoring='f1_weighted')
     svm.fit(X_train_tfidf, y_train)
     y_pred_svm = svm.predict(X_test_tfidf)
     acc_svm = accuracy_score(y_test, y_pred_svm)
@@ -205,8 +223,8 @@ if len(df_model) >= 5 and df_model['label'].nunique() >= 2:
     best_acc = max(acc_nb, acc_svm)
 
     # cross validation scores
-    pipe_nb = Pipeline([('tfidf', tfidf),('clf', MultinomialNB())])
-    pipe_svm = Pipeline([('tfidf', tfidf),('clf', LinearSVC(random_state=42, max_iter=2000))])
+    pipe_nb = GridSearchCV(Pipeline([('tfidf', tfidf),('clf', MultinomialNB())]), param_grid={'clf__alpha': [0.1, 0.5, 1.0, 2.0]}, cv=3)
+    pipe_svm = GridSearchCV(Pipeline([('tfidf', tfidf),('clf', LinearSVC(random_state=42, max_iter=2000, class_weight="balanced"))]), param_grid={'clf__C': [0.1, 0.5, 1.0, 5.0]}, cv=3)
     try:
         cv_nb = cross_val_score(pipe_nb, X, y, cv=5, scoring='accuracy', n_jobs=-1)
         cv_svm = cross_val_score(pipe_svm, X, y, cv=5, scoring='accuracy', n_jobs=-1)
