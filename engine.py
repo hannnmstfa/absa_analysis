@@ -288,10 +288,31 @@ _TEXT_SENTIMENT_NEGATIVE_CUES = {
         "tidak tercium", "hampir tidak tercium", "mulai hilang", "cepat hilang", "tidak konsisten",
         "berkurang", "kurang kuat", "kurang tahan", "tidak tahan", "cuma tahan", "hanya tahan",
         "lemah", "pudar", "menurun", "kurang awet", "semprot ulang", "disemprot ulang", "spray ulang",
+        "masalah", "kendala", "keluhan", "kecewa", "sayang sekali", "kurang", "tidak",
+        "belum konsisten", "kurang konsisten", "tidak stabil", "belum stabil",
+        "mahal", "kemahalan", "overprice", "jauh", "sulit dicari", "susah dicari", "tidak ada",
+        "kosong", "habis", "ragu", "takut", "ragu-ragu", "bingung", "kurang yakin"
     ],
-    "aroma": ["aroma hilang", "aroma cepat hilang", "bau hilang", "wangi hilang", "aroma tidak konsisten"],
-    "ketahanan": ["ketahanan berkurang", "ketahanan kurang", "ketahanan rendah", "tahan 2 jam", "tahan 3 jam"],
-    "kemasan": ["bocor", "rembes", "rusak", "patah", "retak", "nozzle macet", "spray macet"],
+    "aroma": [
+        "aroma hilang", "aroma cepat hilang", "bau hilang", "wangi hilang", "aroma tidak konsisten",
+        "tajam", "terlalu tajam", "pusing", "bikin pusing", "mual", "eneg", "menyengat", "nyegrak",
+        "terlalu kuat", "bau apek", "bau plastik", "bau alkohol", "alkohol banget"
+    ],
+    "ketahanan": [
+        "ketahanan berkurang", "ketahanan kurang", "ketahanan rendah", "tahan 2 jam", "tahan 3 jam",
+        "cepat pudar", "cepat menguap", "sebentar saja", "cuma sebentar", "nggak awet"
+    ],
+    "kemasan": [
+        "bocor", "rembes", "rusak", "patah", "retak", "nozzle macet", "spray macet", "tutup longgar",
+        "macet", "seret", "keras", "susah ditekan", "tumpah", "kurang rapi", "kurang premium",
+        "agak rawan", "botol plastik", "label lepas", "belum konsisten"
+    ],
+    "harga": [
+        "mahal", "kemahalan", "overprice", "pricey", "tidak ramah kantong", "berat di ongkir", "ongkir mahal"
+    ],
+    "akses": [
+        "jauh", "sulit dicari", "susah dicari", "stok kosong", "habis", "tidak ada di shopee", "tidak ada di tokped"
+    ]
 }
 
 _TEXT_SENTIMENT_NEGATIVE_CRITICAL_CUES = {
@@ -299,25 +320,32 @@ _TEXT_SENTIMENT_NEGATIVE_CRITICAL_CUES = {
         "tidak tercium", "hampir tidak tercium", "mulai hilang", "cepat hilang", "tidak konsisten",
         "berkurang", "kurang kuat", "kurang tahan", "tidak tahan", "cuma tahan", "hanya tahan", "pudar",
         "semprot ulang", "disemprot ulang", "spray ulang", "perlu semprot ulang", "perlu disemprot ulang",
+        "bocor", "rusak", "parah", "jelek", "buruk", "belum konsisten", "kurang konsisten", "longgar",
+        "rembes", "hilang", "macet", "pecah", "palsu", "nipu"
     ],
-    "aroma": ["aroma hilang", "aroma tidak konsisten", "wangi hilang", "bau hilang"],
-    "ketahanan": ["ketahanan berkurang", "ketahanan kurang", "ketahanan rendah", "tahan 2 jam", "tahan 3 jam"],
-    "kemasan": ["bocor", "rembes", "rusak", "patah", "retak", "nozzle macet", "spray macet"],
+    "aroma": ["aroma hilang", "aroma tidak konsisten", "wangi hilang", "bau hilang", "pusing", "mual", "alkohol banget"],
+    "ketahanan": ["ketahanan berkurang", "ketahanan kurang", "ketahanan rendah", "tahan 2 jam", "tahan 3 jam", "cepat hilang", "mudah hilang", "cepet ilang"],
+    "kemasan": ["bocor", "rembes", "rusak", "patah", "retak", "nozzle macet", "spray macet", "tumpah", "tutup longgar", "longgar"],
 }
 
 _TEXT_SENTIMENT_NEGATION_GUARDS = [
     "tidak cepat hilang", "tidak mudah hilang", "tidak hilang", "tidak berkurang", "tidak pudar",
-    "tidak perlu disemprot ulang", "tidak perlu semprot ulang",
+    "tidak perlu disemprot ulang", "tidak perlu semprot ulang", "tidak bocor", "tidak macet",
+    "tidak longgar", "nggak longgar", "ga longgar", "tidak rembes", "tidak rusak", "aman",
+    "tidak tajam", "tidak menyengat", "tidak pusing",
 ]
 
 _TEXT_SENTIMENT_POSITIVE_CUES = {
     "_generic": [
         "tahan lama", "awet", "bagus", "nyaman", "suka", "mantap", "harum", "wangi",
-        "konsisten", "stabil",
+        "konsisten", "stabil", "jos", "mantul", "rekomended", "puas", "senang",
+        "aman", "lancar", "kokoh", "rapi", "mewah", "premium", "eksklusif", "elegan",
+        "penasaran", "ingin coba", "mau beli", "bakal beli", "pasti beli", "checkout",
+        "tertarik", "menarik", "keren", "idaman", "impian"
     ],
-    "aroma": ["aroma enak", "aroma lembut", "wangi lembut", "aroma konsisten"],
-    "ketahanan": ["ketahanan bagus", "ketahanan baik", "awet seharian", "tahan seharian"],
-    "kemasan": ["kemasan bagus", "kemasan rapi", "botol bagus", "nozzle bagus", "spray lancar"],
+    "aroma": ["aroma enak", "aroma lembut", "wangi lembut", "aroma konsisten", "wangi enak", "harum sekali", "segar", "fresh"],
+    "ketahanan": ["ketahanan bagus", "ketahanan baik", "awet seharian", "tahan seharian", "tahan lama sekali"],
+    "kemasan": ["kemasan bagus", "kemasan rapi", "botol bagus", "nozzle bagus", "spray lancar", "mewah", "premium", "aman", "kokoh", "eksklusif"],
 }
 
 
@@ -403,9 +431,8 @@ normalization_dict = {
     "enggak": "tidak", "tdk": "tidak", "bgt": "banget", "bgtt": "banget",
     "bangett": "banget", "aja": "saja", "tpi": "tapi", "tp": "tapi",
     "krn": "karena", "karna": "karena", "dgn": "dengan", "dg": "dengan",
-    "cepet": "cepat", "cpt": "cepat", "kureng": "kurang", "krg": "kurang",
-    "wangiii": "wangi", "wangy": "wangi", "mantul": "mantap", "manteb": "mantap",
-    "bgs": "bagus", "bagusss": "bagus", "awettt": "awet"
+    "bgs": "bagus", "bagusss": "bagus", "awettt": "awet", "ilang": "hilang",
+    "cepet": "cepat", "cpt": "cepat"
 }
 
 def _remove_url(text: str) -> str:
@@ -1780,6 +1807,45 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         "kemasan": "Turunkan komplain kemasan pada periode berikutnya",
     }
 
+    ACQUISITION_PLAYBOOK = {
+        "price_barrier": {
+            "signals": {"mahal", "harga", "price", "biaya", "dana", "tabungan", "nabung"},
+            "actions": [
+                "Luncurkan kemasan ukuran kecil (decant/travel size) untuk menurunkan barrier trial pelanggan baru.",
+                "Tawarkan promo bundling varian populer untuk meningkatkan value-for-money di mata calon pembeli.",
+                "Sediakan opsi pembayaran cicilan atau paket tester murah untuk menjangkau segmen yang lebih luas.",
+            ],
+            "kpi": "Naikkan skor minat coba (trial intent) minimal 20 poin pada periode berikutnya",
+        },
+        "accessibility_barrier": {
+            "signals": {"jauh", "toko", "lokasi", "cari", "akses", "beli", "dimana", "online", "shopee", "tokped"},
+            "actions": [
+                "Perluas distribusi ke marketplace online dan tawarkan promo gratis ongkir untuk mempermudah akses.",
+                "Sediakan tester di toko-toko retail mitra atau kirimkan kartu wangi (scented cards) via pengiriman online.",
+                "Optimalkan ketersediaan stok pada kanal digital yang paling banyak dicari oleh calon pembeli.",
+            ],
+            "kpi": "Turunkan keluhan akses pembelian minimal 30%",
+        },
+        "quality_doubt": {
+            "signals": {"ragu", "kualitas", "tahan", "awet", "banding", "asli", "palsu", "review"},
+            "actions": [
+                "Tingkatkan kampanye edukasi produk melalui review influencer dan demonstrasi daya tahan (longevity).",
+                "Berikan jaminan kepuasan atau garansi uang kembali jika wangi tidak sesuai klaim untuk membangun kepercayaan.",
+                "Gunakan testimoni pengguna asli yang menyoroti sillage dan ketahanan dalam materi promosi.",
+            ],
+            "kpi": "Tingkatkan tingkat keyakinan calon pembeli minimal 25%",
+        },
+        "interest_gap": {
+            "signals": {"penasaran", "ingin", "mau", "coba", "tester", "sampel", "wangi", "aroma"},
+            "actions": [
+                "Gelar kampanye 'Trial Kit' eksklusif dengan harga terjangkau untuk konversi rasa penasaran menjadi pembelian.",
+                "Lakukan aktivasi offline (pop-up booth) agar calon pembeli bisa merasakan aroma produk secara langsung.",
+                "Targetkan iklan media sosial pada audiens yang menunjukkan minat tinggi pada profil aroma serupa.",
+            ],
+            "kpi": "Konversi 15% calon pembeli yang 'penasaran' menjadi pembeli pertama",
+        }
+    }
+
     GENERIC_ISSUE_TOKENS = {
         "parfum", "produk", "wangi", "harum", "tahan", "lama", "bagus", "baik", "oke",
         "enak", "suka", "banget", "sekali", "cukup", "lebih",  "udah", "sudah",
@@ -1854,14 +1920,105 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
 
         return best_key, best_hits
 
+    # --- NEW: MARKET INSIGHTS DICTIONARIES ---
+    SCENT_NOTES_MAP = {
+        "citrus": {"citrus", "jeruk", "lemon", "segar", "fresh", "buah", "orange", "bergamot"},
+        "floral": {"bunga", "floral", "mawar", "rose", "jasmine", "melati", "lily", "lavender"},
+        "woody": {"kayu", "woody", "wood", "cendana", "sandalwood", "gaharu", "oud", "pinus", "oakmoss"},
+        "vanilla": {"manis", "vanilla", "vanila", "coklat", "chocolate", "caramel", "karamel", "kue", "bakery"},
+        "spicy": {"rempah", "spicy", "pedas", "cengkeh", "kayumanis", "pepper", "lada"},
+        "powdery": {"bedak", "powdery", "bayi", "baby", "lembut", "soft", "clean"},
+        "musky": {"musk", "musky", "dewasa", "seksi", "sexy", "kulit", "skin", "animalic"}
+    }
+
+    BARRIER_MAP = {
+        "price": {"mahal", "harga", "price", "biaya", "dana", "tabungan", "nabung", "kantong"},
+        "access": {"jauh", "toko", "lokasi", "cari", "akses", "beli", "dimana", "online", "shopee", "tokped", "ongkir"},
+        "quality_doubt": {"ragu", "kualitas", "tahan", "awet", "banding", "asli", "palsu", "review", "testi", "takut"},
+        "trial_need": {"coba", "tester", "sampel", "sample", "decant", "kecil", "ingin", "penasaran", "mau"}
+    }
+
+    def _extract_non_user_market_insights(texts: List[str]) -> Dict[str, object]:
+        all_tokens = []
+        for t in texts:
+            all_tokens.extend(tokenize_id(t))
+        
+        tok_set = set(all_tokens)
+        
+        # 1. Barries Analysis
+        barriers = Counter()
+        barrier_count = 0
+        for label, signals in BARRIER_MAP.items():
+            matches = tok_set & signals
+            if matches:
+                barriers[label] = len(matches)
+                barrier_count += len(matches)
+        
+        # 2. Desired Notes Analysis
+        notes = Counter()
+        for label, signals in SCENT_NOTES_MAP.items():
+            matches = tok_set & signals
+            if matches:
+                notes[label] = len(matches)
+        
+        # 3. Interest Score (Simulated from "mau/ingin/coba" signals)
+        interest_tokens = {"mau", "ingin", "coba", "penasaran", "beli", "checkout", "co", "cari", "sampel", "tester"}
+        interest_matches = [t for t in all_tokens if t in interest_tokens]
+        # Base score on tokens or existence of interest signals
+        interest_score = min(100, max(45, (len(interest_matches) * 15))) if interest_matches else (30 if texts else 0)
+        
+        return {
+            "barriers": dict(barriers.most_common(5)),
+            "barrier_total": barrier_count,
+            "desired_notes": [n for n, _ in notes.most_common(5)],
+            "interest_score": interest_score,
+            "top_mentions": [w for w, _ in Counter(all_tokens).most_common(5) if w not in GENERIC_ISSUE_TOKENS]
+        }
+
     def _build_data_grounded_plan(
         aspect: str,
         tokens: List[str],
         total_comments: int,
         negative_comments: int,
-        context_label: str,
+        context_label: str = "Umum",
         confidence_hint: str = "medium",
+        is_acquisition: bool = False
     ) -> Dict[str, object]:
+        
+        # Determine which playbook to use
+        if is_acquisition:
+            playbook = ACQUISITION_PLAYBOOK
+            default_text = "Optimalkan strategi akuisisi melalui kampanye tester dan edukasi produk untuk menarik minat calon pembeli."
+            default_kpi = "Naikkan skor minat coba pada periode berikutnya"
+            
+            # Map tokens to acquisition focus
+            focus_area = "interest_gap"
+            tok_set = set(tokens)
+            if tok_set & playbook["price_barrier"]["signals"]: focus_area = "price_barrier"
+            elif tok_set & playbook["accessibility_barrier"]["signals"]: focus_area = "accessibility_barrier"
+            elif tok_set & playbook["quality_doubt"]["signals"]: focus_area = "quality_doubt"
+            
+            entry = playbook.get(focus_area, {})
+            text = entry["actions"][0] if entry.get("actions") else default_text
+            kpi = entry.get("kpi", default_kpi)
+            
+            return {
+                "text": _normalize_reco_text(text),
+                "why": f"Berdasarkan {negative_comments}/{total_comments} ulasan hambatan pada segmen calon pembeli.",
+                "aksi_utama": text.split(".")[0],
+                "kpi_target": kpi,
+                "horizon_hari": 14,
+                "confidence": confidence_hint,
+                "issue_terms": list(tok_set & entry.get("signals", set()))[:3],
+                "data": {
+                    "context": context_label,
+                    "negatif": negative_comments,
+                    "total": total_comments,
+                    "persen_negatif": round((negative_comments / total_comments * 100), 1) if total_comments > 0 else 0.0
+                }
+            }
+
+        aspek_key = aspect.lower()
         ordered_tokens = _extract_issue_terms_for_aspect(aspect, tokens, limit=8)
         cluster_key, matched_terms = _pick_issue_cluster(aspect, ordered_tokens)
         horizon_by_aspect = {
@@ -1961,27 +2118,54 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 cols.append(c)
         return cols
 
+    def _row_sentiment(row_data) -> str:
+        if not likert_cols:
+            return "Unknown"
+        try:
+            vals = pd.to_numeric(pd.Series([row_data.get(c) for c in likert_cols]), errors="coerce").dropna()
+            if len(vals) == 0:
+                return "Unknown"
+            return likert_average_to_sentiment(vals.mean())
+        except Exception:
+            return "Unknown"
+
+    def _row_sentiment_for_aspect(row_data, asp: str) -> str:
+        asp_cols = _aspect_likert_columns(df, asp)
+        if asp_cols:
+            try:
+                vals = pd.to_numeric(pd.Series([row_data.get(c) for c in asp_cols]), errors="coerce").dropna()
+                if len(vals) > 0:
+                    return likert_average_to_sentiment(vals.mean())
+            except Exception:
+                pass
+        return _row_sentiment(row_data)
+
+    def _resolve_aspect_sentiment(row_data, asp: str, text_value: str) -> str:
+        base_sent = _row_sentiment_for_aspect(row_data, asp)
+        text_hint = _infer_text_sentiment_for_aspect(text_value, asp)
+        if text_hint == "Negatif" and base_sent in ("Positif", "Netral", "Unknown"):
+            return "Negatif"
+        if base_sent == "Unknown":
+            return text_hint
+        return base_sent
+
     def _aspect_unique_metrics(frame: pd.DataFrame, aspect: str) -> Dict[str, int]:
         if frame is None or len(frame) == 0:
             return {"total": 0, "negatif": 0}
 
-        aspect_cols = _aspect_likert_columns(frame, aspect)
-        fallback_cols = [c for c in likert_cols if c in frame.columns]
-
-        target_cols = aspect_cols if aspect_cols else fallback_cols
-        if not target_cols:
-            return {"total": int(len(frame)), "negatif": 0}
-
-        num = frame[target_cols].apply(pd.to_numeric, errors="coerce")
-        has_data = num.notna().any(axis=1)
-        vals = num.mean(axis=1, skipna=True)
-
-        total = int(has_data.sum())
-        negatif = int(((vals <= 3) & has_data).sum())
-
-        if total <= 0:
-            total = int(len(frame))
-        negatif = max(0, min(negatif, total))
+        # Use the same consolidated logic for metrics to ensure consistency with drilldown
+        col = aspect_comment_cols.get(aspect) or text_col
+        
+        def _map_sent(row):
+            return _resolve_aspect_sentiment(row.to_dict(), aspect, str(row.get(col, "")))
+            
+        sentiments = frame.apply(_map_sent, axis=1)
+        
+        # total here means rows that actually have a sentiment (not Unknown)
+        # or just total rows in frame? Original logic used has_data.sum()
+        total = int(len(frame))
+        negatif = int((sentiments == "Negatif").sum())
+        
         return {"total": total, "negatif": negatif}
 
     if variant_col and variant_col in df.columns:
@@ -2019,11 +2203,20 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 confidence_hint=confidence_hint,
             )
 
-        neg_mask_aroma = _negative_mask_for_aspect("aroma")
-        neg_mask_ketahanan = _negative_mask_for_aspect("ketahanan")
-        neg_mask_kemasan = _negative_mask_for_aspect("kemasan")
+        def _get_aspect_sentiment_mask(aspect: str, target_sentiment: str) -> pd.Series:
+            col = aspect_comment_cols.get(aspect) or text_col
+            def _row_logic(row):
+                return _resolve_aspect_sentiment(row.to_dict(), aspect, str(row.get(col, ""))) == target_sentiment
+            return df.apply(_row_logic, axis=1)
+
+        neg_mask_aroma = _get_aspect_sentiment_mask("aroma", "Negatif")
+        neg_mask_ketahanan = _get_aspect_sentiment_mask("ketahanan", "Negatif")
+        neg_mask_kemasan = _get_aspect_sentiment_mask("kemasan", "Negatif")
+
         if likert_cols:
-            neg_mask_total = df[likert_cols].apply(pd.to_numeric, errors="coerce").mean(axis=1, skipna=True) <= 3
+            def _row_total_sent(row):
+                return _row_sentiment(row.to_dict()) == "Negatif"
+            neg_mask_total = df.apply(_row_total_sent, axis=1)
         else:
             neg_mask_total = pd.Series([False] * len(df), index=df.index)
 
@@ -2033,9 +2226,11 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
 
             aroma_col = aspect_comment_cols.get("aroma") or text_col
             ketahanan_col = aspect_comment_cols.get("ketahanan") or text_col
+            kemasan_col = aspect_comment_cols.get("kemasan") or text_col
 
             aroma_texts = []
             ketahanan_texts = []
+            kemasan_texts = []
 
             if aroma_col and aroma_col in df.columns:
                 aroma_texts = df.loc[var_mask & neg_mask_aroma, aroma_col].dropna().astype(str).tolist()
@@ -2047,14 +2242,24 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 if not ketahanan_texts:
                     ketahanan_texts = df.loc[var_mask, ketahanan_col].dropna().astype(str).tolist()
 
+            if kemasan_col and kemasan_col in df.columns:
+                kemasan_texts = df.loc[var_mask & neg_mask_kemasan, kemasan_col].dropna().astype(str).tolist()
+                if not kemasan_texts:
+                    kemasan_texts = df.loc[var_mask, kemasan_col].dropna().astype(str).tolist()
+
             total_var = int(var_mask.sum())
             neg_var = int((var_mask & neg_mask_total).sum())
             aroma_metrics_var = _aspect_unique_metrics(var_frame, "aroma")
             ketahanan_metrics_var = _aspect_unique_metrics(var_frame, "ketahanan")
+            kemasan_metrics_var = _aspect_unique_metrics(var_frame, "kemasan")
+
             total_var_aroma = int(aroma_metrics_var.get("total", total_var) or total_var)
             total_var_ketahanan = int(ketahanan_metrics_var.get("total", total_var) or total_var)
+            total_var_kemasan = int(kemasan_metrics_var.get("total", total_var) or total_var)
+
             neg_var_aroma = int(aroma_metrics_var.get("negatif", 0))
             neg_var_ketahanan = int(ketahanan_metrics_var.get("negatif", 0))
+            neg_var_kemasan = int(kemasan_metrics_var.get("negatif", 0))
             neg_pct = round((neg_var / total_var) * 100, 1) if total_var > 0 else 0.0
             sample_sufficient = total_var >= MIN_VARIANT_SAMPLE
             confidence_level = "high" if sample_sufficient else "low"
@@ -2079,25 +2284,55 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 context_label=f"Varian {var}",
                 confidence_hint=confidence_level,
             )
+            kemasan_plan = _build_reco_from_texts(
+                "kemasan",
+                kemasan_texts,
+                total_comments=total_var_kemasan,
+                negative_comments=neg_var_kemasan,
+                context_label=f"Varian {var}",
+                confidence_hint=confidence_level,
+            )
 
             if sample_note:
                 aroma_plan["text"] = _normalize_reco_text(f"{aroma_plan.get('text', '-')}{sample_note}")
                 ketahanan_plan["text"] = _normalize_reco_text(f"{ketahanan_plan.get('text', '-')}{sample_note}")
+                kemasan_plan["text"] = _normalize_reco_text(f"{kemasan_plan.get('text', '-')}{sample_note}")
                 aroma_plan["catatan_sampel"] = sample_note.strip()
                 ketahanan_plan["catatan_sampel"] = sample_note.strip()
+                kemasan_plan["catatan_sampel"] = sample_note.strip()
 
-            variant_recommendations[var] = {
-                "aroma": str(aroma_plan.get("text", "-")),
-                "ketahanan": str(ketahanan_plan.get("text", "-")),
-                "aroma_plan": aroma_plan,
-                "ketahanan_plan": ketahanan_plan,
-                "_meta": {
-                    "total_komentar": total_var,
-                    "minimum_sample": MIN_VARIANT_SAMPLE,
-                    "sample_sufficient": sample_sufficient,
-                    "confidence_level": confidence_level,
-                },
-            }
+            # Build drilldown for this variant with consolidated sentiment
+            drilldown_var = {}
+            for asp in ["aroma", "kemasan", "ketahanan"]:
+                asp_col = aspect_comment_cols.get(asp) or text_col
+                if not asp_col or asp_col not in df.columns:
+                    drilldown_var[asp] = {"positif": ["Belum ada data."], "negatif": ["Belum ada data."], "jumlah_positif": 0, "jumlah_negatif": 0}
+                    continue
+                
+                # Pre-calculate sentiment for all rows in this variant for this aspect
+                def _map_drilldown_sent(row):
+                    txt = str(row.get(asp_col, ""))
+                    return _resolve_aspect_sentiment(row.to_dict(), asp, txt)
+                
+                var_row_sentiments = df.loc[var_mask].apply(_map_drilldown_sent, axis=1)
+                
+                asp_neg_mask_local = (var_row_sentiments == "Negatif")
+                asp_pos_mask_local = (var_row_sentiments == "Positif")
+                
+                # Get unique texts for drilldown
+                neg_samples = df.loc[var_mask].loc[asp_neg_mask_local, asp_col].dropna().astype(str).str.strip().unique().tolist()
+                pos_samples = df.loc[var_mask].loc[asp_pos_mask_local, asp_col].dropna().astype(str).str.strip().unique().tolist()
+                
+                # Filter out empty/too short strings
+                neg_samples = [s for s in neg_samples if len(s) > 2][:DRILLDOWN_MAX_EXAMPLES]
+                pos_samples = [s for s in pos_samples if len(s) > 2][:DRILLDOWN_MAX_EXAMPLES]
+                
+                drilldown_var[asp] = {
+                    "negatif": neg_samples if neg_samples else ["Belum ada data."],
+                    "positif": pos_samples if pos_samples else ["Belum ada data."],
+                    "jumlah_negatif": int(asp_neg_mask_local.sum()),
+                    "jumlah_positif": int(asp_pos_mask_local.sum()),
+                }
 
             issue_text_sources = []
             for colname in [aspect_comment_cols.get("aroma"), aspect_comment_cols.get("ketahanan"), text_col]:
@@ -2124,6 +2359,24 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 top_issue, top_issue_freq = "-", 0
 
             quality_score = round(max(0.0, 100.0 - float(neg_pct)), 1)
+
+            variant_recommendations[var] = {
+                "aroma": str(aroma_plan.get("text", "-")),
+                "ketahanan": str(ketahanan_plan.get("text", "-")),
+                "kemasan": str(kemasan_plan.get("text", "-")),
+                "aroma_plan": aroma_plan,
+                "ketahanan_plan": ketahanan_plan,
+                "kemasan_plan": kemasan_plan,
+                "drilldown_aspek": drilldown_var,
+                "top_issue": top_issue,
+                "quality_score": quality_score,
+                "_meta": {
+                    "total_komentar": total_var,
+                    "minimum_sample": MIN_VARIANT_SAMPLE,
+                    "sample_sufficient": sample_sufficient,
+                    "confidence_level": confidence_level,
+                },
+            }
 
             variant_rankings.append({
                 "varian": var,
@@ -2278,18 +2531,14 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 "prioritas": len(rekomendasi_list) + 1
             })
 
-    def _row_sentiment(row_data) -> str:
-        if not likert_cols:
-            return "Unknown"
-        try:
-            vals = pd.to_numeric(pd.Series([row_data.get(c) for c in likert_cols]), errors="coerce").dropna()
-            if len(vals) == 0:
-                return "Unknown"
-            return likert_average_to_sentiment(vals.mean())
-        except Exception:
-            return "Unknown"
 
-    def _build_segment_view(frame: pd.DataFrame) -> Dict[str, object]:
+
+    def _build_segment_view(frame: pd.DataFrame, segment_key: str, total_sudah: int, total_belum: int) -> Dict[str, object]:
+        labels_map = {
+            "all": "Seluruh Responden",
+            "used": "Sudah Menggunakan (Analisis Produk)",
+            "non_user": "Belum Menggunakan (Calon Pembeli)"
+        }
         total = int(len(frame))
         labels = []
         local_aspect_counts: Dict[str, Counter] = {}
@@ -2319,30 +2568,7 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
             if issue_src and issue_src in frame.columns and issue_src != text_col and issue_src != comment_src:
                 segment_text_sources.append((issue_src, asp, "issue"))
 
-        def _row_sentiment_for_aspect(row_data, asp: str) -> str:
-            asp_cols = _aspect_likert_columns(frame, asp)
-            if asp_cols:
-                try:
-                    vals = pd.to_numeric(pd.Series([row_data.get(c) for c in asp_cols]), errors="coerce").dropna()
-                    if len(vals) > 0:
-                        return likert_average_to_sentiment(vals.mean())
-                except Exception:
-                    pass
-            return _row_sentiment(row_data)
-
-        def _resolve_aspect_sentiment(row_data, asp: str, text_value: str) -> str:
-            base_sent = _row_sentiment_for_aspect(row_data, asp)
-            text_hint = _infer_text_sentiment_for_aspect(text_value, asp)
-
-            # If text clearly indicates negative sentiment for this aspect,
-            # prioritize it for drilldown display to avoid misleading examples.
-            if text_hint == "Negatif" and base_sent in ("Positif", "Netral", "Unknown"):
-                return "Negatif"
-
-            if base_sent == "Unknown":
-                return text_hint
-
-            return base_sent
+        # Consolidated sentiment helpers are now defined at the parent level
 
         def _segment_aspect_metric_from_likert(asp: str) -> Optional[Dict[str, object]]:
             cols = _aspect_likert_columns(frame, asp)
@@ -2428,6 +2654,18 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 for asp in desired:
                     sentiments = row_aspect_sentiments.get(asp, [])
                     asp_sentiment = _coalesce_sentiments(sentiments)
+                    
+                    # Re-validate sentiment for specific aspect texts to avoid misclassification
+                    asp_texts = row_aspect_texts.get(asp, [])
+                    if asp_texts:
+                        combined_asp_text = " ".join(asp_texts).lower()
+                        # Strict negative triggers for these aspects
+                        if any(term in combined_asp_text for term in ["longgar", "bocor", "rembes", "macet", "pecah", "hilang", "kurang"]):
+                             asp_sentiment = "Negatif"
+                        # Contextual longevity check
+                        if asp == "ketahanan" and "cepat" in combined_asp_text and "hilang" in combined_asp_text:
+                             asp_sentiment = "Negatif"
+
                     if asp_sentiment in ("Positif", "Negatif"):
                         key = "positif" if asp_sentiment == "Positif" else "negatif"
                         count_key = "jumlah_positif" if key == "positif" else "jumlah_negatif"
@@ -2438,8 +2676,37 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                         if text_pick and text_pick not in current and len(current) < DRILLDOWN_MAX_EXAMPLES:
                             current.append(text_pick)
 
+        # --- NEW: MARKET INSIGHTS CALCULATION ---
+        market_insights = None
+        if segment_key == "non_user":
+            all_segment_texts = []
+            for src_col, _, _ in (segment_text_sources or []):
+                if src_col in frame.columns:
+                    all_segment_texts.extend(frame[src_col].dropna().astype(str).tolist())
+            market_insights = _extract_non_user_market_insights(all_segment_texts)
+
         dist = Counter(labels)
+        if segment_key == "non_user" and market_insights:
+            # If we have market barriers but 0 negative labels, inject them to reflect reality
+            if dist.get("Negatif", 0) == 0 and market_insights.get("barrier_total", 0) > 0:
+                dist["Negatif"] = min(total, market_insights["barrier_total"])
+                # Adjust Positif/Netral to maintain total
+                if dist["Positif"] > dist["Negatif"]:
+                    dist["Positif"] -= dist["Negatif"]
+                elif dist["Netral"] > dist["Negatif"]:
+                    dist["Netral"] -= dist["Negatif"]
+
         total_labeled = sum(dist.values()) if dist else 0
+        
+        # Special logic for non_user: if we have 0 labels but have market insights,
+        # use total respondents as denominator to show "Market Barrier Rate"
+        if segment_key == "non_user" and total_labeled == 0 and total > 0:
+            barrier_val = market_insights.get("barrier_total", 0) if market_insights else 0
+            if barrier_val > 0:
+                dist["Negatif"] = min(total, barrier_val)
+                dist["Netral"] = max(0, total - dist["Negatif"])
+                total_labeled = total
+
         persen_neg = (dist.get("Negatif", 0) / total_labeled) if total_labeled else 0.0
 
         sentimen_aspek = []
@@ -2519,6 +2786,7 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 negative_comments=negatif_aspect,
                 context_label="Segmen aktif",
                 confidence_hint="high" if total_aspect >= MIN_VARIANT_SAMPLE else "medium",
+                is_acquisition=(frame["_segment_key"].iloc[0] == "non_user" if "_segment_key" in frame.columns and not frame.empty else False)
             )
 
             isu_utama = issue_terms[:3]
@@ -2666,25 +2934,24 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 drilldown[asp]["negatif"] = ["Belum ada contoh komentar negatif pada segmen ini."]
 
         return {
-            "jumlah_komentar": total,
+            "label": labels_map.get(segment_key, "Segmen Lainnya"),
+            "jumlah_responden": total,
+            "sudah_pakai": total if segment_key == "used" else (0 if segment_key == "non_user" else int(total_sudah)),
+            "belum_pakai": total if segment_key == "non_user" else (0 if segment_key == "used" else int(total_belum)),
+            "sentimen": dist,
             "persen_negatif": float(round(persen_neg, 4)),
+            "jumlah_komentar": int(total_labeled),
+            "sentimen_per_aspek": sentimen_aspek,
+            "prioritas": prioritas_local,
+            "top_isu": top_isu_local,
+            "rekomendasi": rekomendasi_local,
+            "top_kata": top_kata_local,
+            "drilldown": drilldown,
+            "market_insights": market_insights,
             "trend_periode": trend_periode,
             "early_warning": early_warning,
-            "sentiment_dist": {
-                "Positif": int(dist.get("Positif", 0)),
-                "Netral": int(dist.get("Netral", 0)),
-                "Negatif": int(dist.get("Negatif", 0)),
-            },
-            "top_isu": [
-                {"aspek": x["aspek"], "isu": x["isu"], "frekuensi": x["frekuensi"]}
-                for x in top_isu_local[:3]
-            ],
-            "top_kata": top_kata_local,
-            "sentimen_per_aspek": sentimen_aspek[:3],
-            "prioritas": prioritas_local,
-            "rekomendasi": rekomendasi_local,
-            "drilldown_aspek": drilldown,
         }
+
 
     def _build_non_user_segment_rekomendasi(
         insights: Dict[str, object],
@@ -2818,10 +3085,13 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         used_mask_raw = all_mask
         non_user_mask_raw = pd.Series([False] * len(df_raw), index=df_raw.index)
 
+    total_sudah = int(used_mask.sum()) if usage_col else int(len(df_raw))
+    total_belum = int(non_user_mask.sum()) if usage_col else 0
+
     segment_views = {
-        "all": _build_segment_view(df_raw.loc[all_mask].copy()),
-        "used": _build_segment_view(df_raw.loc[used_mask_raw].copy()),
-        "non_user": _build_segment_view(df_raw.loc[non_user_mask_raw].copy()),
+        "all": _build_segment_view(df_raw.loc[all_mask].copy(), "all", total_sudah, total_belum),
+        "used": _build_segment_view(df_raw.loc[used_mask_raw].copy(), "used", total_sudah, total_belum),
+        "non_user": _build_segment_view(df_raw.loc[non_user_mask_raw].copy(), "non_user", total_sudah, total_belum),
     }
 
     has_variant_data = bool(variant_col and len(variant_list) > 0)

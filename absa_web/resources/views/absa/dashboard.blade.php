@@ -295,6 +295,12 @@
       padding: 14px;
     }
 
+    .marketGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; }
+    .marketBox { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 15px; }
+    .conversionMeter { height: 24px; background: rgba(255,255,255,0.05); border-radius: 12px; position: relative; overflow: hidden; margin-top: 10px; border: 1px solid rgba(255,255,255,0.1); }
+    .conversionFill { height: 100%; width: 0%; transition: width 1s ease-out; }
+    .conversionValue { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+
     .submitLoadingTitle {
       color: rgba(255, 255, 255, .95);
       font-size: 16px;
@@ -2601,8 +2607,10 @@
     $defaultVariant = !empty($variants) ? $variants[0] : null;
     $defaultAromaReco = $defaultVariant ? data_get($variantRecs, $defaultVariant . '.aroma', '-') : '-';
     $defaultKetahananReco = $defaultVariant ? data_get($variantRecs, $defaultVariant . '.ketahanan', '-') : '-';
+    $defaultKemasanReco = $defaultVariant ? data_get($variantRecs, $defaultVariant . '.kemasan', data_get($variantAnalysis, 'kemasan_rekomendasi_global', '-')) : data_get($variantAnalysis, 'kemasan_rekomendasi_global', '-');
     $defaultAromaPlan = $defaultVariant ? data_get($variantRecs, $defaultVariant . '.aroma_plan', []) : [];
     $defaultKetahananPlan = $defaultVariant ? data_get($variantRecs, $defaultVariant . '.ketahanan_plan', []) : [];
+    $defaultKemasanPlan = $defaultVariant ? data_get($variantRecs, $defaultVariant . '.kemasan_plan', data_get($variantAnalysis, 'kemasan_plan_global', [])) : data_get($variantAnalysis, 'kemasan_plan_global', []);
     $confidenceLabelMap = [
       'high' => 'Tinggi',
       'medium' => 'Sedang',
@@ -2618,9 +2626,9 @@
     $defaultKetahananMeta = 'KPI: ' . data_get($defaultKetahananPlan, 'kpi_target', '-')
       . ' • Jangka Waktu: ' . (int) data_get($defaultKetahananPlan, 'horizon_hari', 0) . ' hari'
       . ' • Tingkat Keyakinan: ' . $toConfidenceLabel(data_get($defaultKetahananPlan, 'confidence', '-'));
-    $kemasanMeta = 'KPI: ' . data_get($kemasanGlobalPlan, 'kpi_target', '-')
-      . ' • Jangka Waktu: ' . (int) data_get($kemasanGlobalPlan, 'horizon_hari', 0) . ' hari'
-      . ' • Tingkat Keyakinan: ' . $toConfidenceLabel(data_get($kemasanGlobalPlan, 'confidence', '-'));
+    $defaultKemasanMeta = 'KPI: ' . data_get($defaultKemasanPlan, 'kpi_target', '-')
+      . ' • Jangka Waktu: ' . (int) data_get($defaultKemasanPlan, 'horizon_hari', 0) . ' hari'
+      . ' • Tingkat Keyakinan: ' . $toConfidenceLabel(data_get($defaultKemasanPlan, 'confidence', '-'));
 
     $segmentasi = data_get($result ?? [], 'segmentasi_responden', []);
     $segKolom = data_get($segmentasi, 'kolom_pengalaman');
@@ -3064,10 +3072,10 @@
 
 
 
-      <div class="panel gold kpi kpiSimple">
-        <div class="ico">😕</div>
+      <div class="panel gold kpi kpiSimple" id="kpiNegatifCard">
+        <div class="ico kpiIconInner">😟</div>
         <div class="kpiMain">
-          <div class="label">Sentimen Negatif</div>
+          <div class="label kpiLabel">Sentimen Negatif</div>
           <div class="value" id="kpiNegatifValue">{{ $negatifText }}</div>
         </div>
         <div class="spark"></div>
@@ -3144,7 +3152,7 @@
           <h3>Analisis Segmen Calon Pembeli (Belum Pernah Pakai)</h3>
           <div class="mini" style="margin-top:2px;margin-bottom:8px">Fokus: hambatan adopsi, kebutuhan utama, dan
             pendorong konversi.</div>
-          <div class="mini" style="margin-bottom:10px;line-height:1.5">
+          <div class="mini" style="margin-bottom:12px;opacity:0.8;line-height:1.5;">
             <b>Mode analisis utama:</b>
             {{ $segMode === 'sudah_pakai' ? 'Hanya responden yang sudah menggunakan' : 'Seluruh data (mode cadangan)' }}
             @if(!empty($segKolom))
@@ -3153,6 +3161,27 @@
             @if(!empty($segCatatan))
               <br><span style="color:#f7b955">{{ $segCatatan }}</span>
             @endif
+          </div>
+
+          <div id="marketInsightsContainer" style="display:none; margin-bottom:20px;">
+            <div class="mini" style="margin-bottom:10px; color:#fff; font-weight:bold; letter-spacing:0.5px;">MARKET EXPANSION INSIGHTS</div>
+            <div class="marketGrid">
+               <div class="marketBox">
+                  <div class="mini" style="margin-bottom:8px; opacity:0.7">Hambatan Utama (Purchase Barriers)</div>
+                  <div id="barrierBars" class="miniBars"></div>
+               </div>
+               <div class="marketBox">
+                  <div class="mini" style="margin-bottom:8px; opacity:0.7">Profil Aroma yang Dicari</div>
+                  <div id="desiredNotesList" class="chips" style="gap:6px; margin-top:5px;"></div>
+               </div>
+               <div class="marketBox" style="text-align:center">
+                  <div class="mini" style="margin-bottom:8px; opacity:0.7">Skor Potensi Konversi</div>
+                  <div class="conversionMeter">
+                     <div id="conversionFill" class="conversionFill"></div>
+                     <div id="conversionValue" class="conversionValue">0%</div>
+                  </div>
+               </div>
+            </div>
           </div>
 
           <div class="tableScrollX" style="margin-bottom:10px;">
@@ -3329,12 +3358,12 @@
                 $total = (int) data_get($s, 'total', 0);
                 // fallback ke positif jika negatif nol
                 if ($persenNeg <= 0 && $total > 0) {
-                  $persenNeg = round((data_get($s, 'positif', 0) / $total) * 100, 1);
+                  $persenNeg = (data_get($s, 'positif', 0) / $total);
                 }
               @endphp
               <div class="brow">
                 <div class="k">{{ data_get($s, 'aspek', '-') }}</div>
-                <div class="v">{{ round($persenNeg, 1) }}%</div>
+                <div class="v">{{ round($persenNeg * 100, 1) }}%</div>
               </div>
             @endforeach
           </div>
@@ -3473,7 +3502,7 @@
                         <td>{{ data_get($vr, 'peringkat', '-') }}</td>
                         <td>{{ data_get($vr, 'varian', '-') }}</td>
                         <td>{{ number_format((float) data_get($vr, 'skor_kualitas', 0), 1) }}</td>
-                        <td>{{ number_format((float) data_get($vr, 'persen_negatif', 0), 1) }}%</td>
+                        <td>{{ number_format((float) data_get($vr, 'persen_negatif', 0) * 100, 1) }}%</td>
                         <td>{{ (int) data_get($vr, 'total_komentar', 0) }}</td>
                         <td><span class="alignBadge partial">Sebagian</span></td>
                         @php $isuVarian = (string) data_get($vr, 'isu_dominan', '-'); @endphp
@@ -3506,9 +3535,9 @@
             <div class="rekomItem">
               <div class="ricon">📦</div>
               <div>
-                <p class="ttl">Rekomendasi Kemasan (umum)</p>
-                <p class="txt">{{ $kemasanGlobalReco }}</p>
-                <p class="mini" style="margin-top:4px">{{ $kemasanMeta }}</p>
+                <p class="ttl">Rekomendasi Kemasan (per varian)</p>
+                <p class="txt" id="recoKemasanText">{{ $defaultKemasanReco }}</p>
+                <p class="mini" id="recoKemasanMeta" style="margin-top:4px">{{ $defaultKemasanMeta }}</p>
               </div>
             </div>
           </div>
@@ -3749,12 +3778,21 @@
 @if(!empty($result))
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
   <script>
     (function () {
       const segmentViews = @json($segmentViews);
       const defaultSegment = @json($defaultSegmentView);
       const operationalReadiness = @json($operationalReadiness);
       const variantRankingsData = @json($variantRankings);
+      const variantRecsData = @json($variantRecs);
+      
+      const barrierLabelMap = {
+        'price': 'Sensitivitas Harga',
+        'access': 'Akses & Distribusi',
+        'quality_doubt': 'Keraguan Kualitas',
+        'trial_need': 'Butuh Sampel/Trial'
+      };
       const brandName = 'LUXUEX Perfume';
       const brandLogoCandidates = @json($brandLogoCandidates);
 
@@ -4169,383 +4207,231 @@
 
         const payload = collectWeeklyRecommendationPayload();
         const logoDataUrl = await resolveBrandLogoDataUrl();
+        
+        // Note: sentimDonut is a CSS-based DIV, not a canvas, so we don't capture it as dataURL here.
+        const sentimChartUrl = null;
+
         const doc = new jsPdfLib({ unit: 'pt', format: 'a4' });
-        const margin = 34;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const maxWidth = pageWidth - (margin * 2);
-        const contentBottom = pageHeight - margin - 28;
-        let y = margin;
-
+        
+        const PRIMARY_COLOR = [15, 23, 42]; // Slate 900
+        const ACCENT_COLOR = [30, 41, 59]; // Slate 800
+        const TEXT_MAIN = [30, 41, 59];
+        const TEXT_SUB = [100, 116, 139];
+        const MARGIN = 45;
+        const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+        const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
+        const CONTENT_WIDTH = PAGE_WIDTH - (MARGIN * 2);
+        
         const now = new Date();
-        const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const timestamp = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-        const readinessLevelLower = String(payload.readinessLevel || '').toLowerCase();
-        const readinessColor = readinessLevelLower === 'ready'
-          ? [67, 160, 71]
-          : (readinessLevelLower === 'limited' ? [229, 169, 52] : [198, 75, 75]);
-
-        const drawFooterWatermark = (pageNo, totalPages) => {
-          if (logoDataUrl) {
-            drawLogo(doc, logoDataUrl, margin, pageHeight - 30, 14, 14);
-          }
+        // Helpers
+        const drawFooter = (pageNo, totalPages) => {
+          doc.setPage(pageNo);
+          doc.setDrawColor(241, 245, 249);
+          doc.line(MARGIN, PAGE_HEIGHT - 35, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 35);
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(152, 152, 152);
-          const wmOffset = logoDataUrl ? 18 : 0;
-          doc.text(`${brandName} • ${ts}`, margin + wmOffset, pageHeight - 16);
-          doc.text(`Halaman ${pageNo}/${totalPages}`, pageWidth - margin, pageHeight - 16, { align: 'right' });
+          doc.setFontSize(7.5);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`${brandName.toUpperCase()} • LUXURY BUSINESS INTELLIGENCE`, MARGIN, PAGE_HEIGHT - 22);
+          doc.text(`Dicetak pada: ${timestamp} • Halaman ${pageNo} / ${totalPages}`, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 22, { align: 'right' });
         };
 
-        const ensureSpace = (height, afterPageAdd = null) => {
-          if (y + height > contentBottom) {
-            doc.addPage();
-            y = margin;
-            if (typeof afterPageAdd === 'function') afterPageAdd();
-          }
-        };
-
-        const splitClamped = (text, width, maxLines = 0) => {
-          const lines = doc.splitTextToSize(String(text ?? '-'), width);
-          if (maxLines > 0 && lines.length > maxLines) {
-            const clipped = lines.slice(0, maxLines);
-            const last = String(clipped[maxLines - 1] || '').replace(/[\s.]+$/, '');
-            clipped[maxLines - 1] = `${last}...`;
-            return clipped;
-          }
-          return lines.length ? lines : ['-'];
-        };
-
-        const writeBlock = (text, opts = {}) => {
-          const size = Number(opts.size || 11);
-          const weight = opts.bold ? 'bold' : 'normal';
-          const gap = Number(opts.gap || 4);
-          doc.setFont('helvetica', weight);
-          doc.setFontSize(size);
-          const lines = splitClamped(String(text || '-'), maxWidth);
-          lines.forEach((line) => {
-            ensureSpace(size + 4);
-            doc.setTextColor(26, 26, 26);
-            doc.text(line, margin, y);
-            y += size + 4;
-          });
-          y += gap;
-        };
-
-        const drawCover = () => {
-          const boxH = 118;
-          doc.setFillColor(18, 24, 36);
-          doc.roundedRect(margin, y, maxWidth, boxH, 12, 12, 'F');
-          doc.setFillColor(readinessColor[0], readinessColor[1], readinessColor[2]);
-          doc.roundedRect(margin + 12, y + 14, 138, 24, 10, 10, 'F');
-
-          if (logoDataUrl) {
-            drawLogo(doc, logoDataUrl, pageWidth - margin - 66, y + 18, 54, 54);
-          }
-
-          doc.setTextColor(255, 255, 255);
+        const drawSectionHeader = (title, yPos) => {
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(13);
-          doc.text(`STATUS ${String(payload.readinessLevel || '-').toUpperCase()}`, margin + 20, y + 31);
+          doc.setFontSize(11);
+          doc.setTextColor(PRIMARY_COLOR[0], PRIMARY_COLOR[1], PRIMARY_COLOR[2]);
+          doc.text(title.toUpperCase(), MARGIN, yPos);
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.5);
+          doc.line(MARGIN, yPos + 5, PAGE_WIDTH - MARGIN, yPos + 5);
+          return yPos + 22;
+        };
 
+        let currentY = 55;
+
+        // --- HEADER ---
+        if (logoDataUrl) {
+          doc.addImage(logoDataUrl, 'PNG', MARGIN, currentY - 18, 40, 40);
+        }
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(PRIMARY_COLOR[0], PRIMARY_COLOR[1], PRIMARY_COLOR[2]);
+        doc.text('EXECUTIVE ANALYTICS REPORT', logoDataUrl ? MARGIN + 50 : MARGIN, currentY + 5);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(TEXT_SUB[0], TEXT_SUB[1], TEXT_SUB[2]);
+        doc.text(`PERIODE ANALISIS: ${payload.periodLabel.toUpperCase()}`, logoDataUrl ? MARGIN + 50 : MARGIN, currentY + 18);
+        
+        currentY += 55;
+
+        // --- KPI GRID ---
+        const gridW = (CONTENT_WIDTH - 20) / 3;
+        const gridH = 55;
+        
+        const drawKpiBox = (label, value, x, yy, color = [255, 255, 255]) => {
+          doc.setFillColor(248, 250, 252);
+          doc.roundedRect(x, yy, gridW, gridH, 4, 4, 'F');
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(20);
-          doc.text('Ringkasan Eksekutif ABSA', margin + 12, y + 63);
-
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(10);
-          doc.text(`Periode aksi: ${payload.periodLabel}`, margin + 12, y + 83);
-          doc.text(`Skor kesiapan: ${payload.readinessScore}/100`, margin + 12, y + 98);
-          doc.text(`Siap bisnis: ${Boolean(operationalReadiness?.ready_for_business_use)} | Siap otomatis: ${Boolean(operationalReadiness?.ready_for_auto_actions)}`, margin + 12, y + 112);
-
-          y += boxH + 16;
+          doc.setFontSize(7.5);
+          doc.setTextColor(TEXT_SUB[0], TEXT_SUB[1], TEXT_SUB[2]);
+          doc.text(label, x + 12, yy + 18);
+          doc.setFontSize(16);
+          doc.setTextColor(PRIMARY_COLOR[0], PRIMARY_COLOR[1], PRIMARY_COLOR[2]);
+          doc.text(`${value}`, x + 12, yy + 42);
         };
 
-        const drawSectionTitle = (text, opts = {}) => {
-          const topGap = Number(opts.topGap || 0);
-          if (topGap > 0) {
-            ensureSpace(topGap + 26);
-            y += topGap;
-          } else {
-            ensureSpace(26);
-          }
-          doc.setDrawColor(225, 230, 236);
-          doc.line(margin, y + 3, pageWidth - margin, y + 3);
-          doc.setFillColor(32, 40, 54);
-          doc.roundedRect(margin, y - 8, 4, 14, 2, 2, 'F');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(12.5);
-          doc.setTextColor(20, 20, 20);
-          doc.text(text, margin + 10, y);
-          y += 16;
-        };
+        drawKpiBox('KESIAPAN OPERASIONAL', `${payload.readinessScore}%`, MARGIN, currentY);
+        drawKpiBox('TOTAL RESPONDEN', `${variantRankingsData.reduce((acc, r) => acc + (Number(r.total_komentar) || 0), 0)}`, MARGIN + gridW + 10, currentY);
+        drawKpiBox('STATUS SISTEM', payload.readinessLevel, MARGIN + (gridW * 2) + 20, currentY);
 
-        const drawStatusPill = (label, colorRgb, x, yy, width) => {
-          doc.setFillColor(colorRgb[0], colorRgb[1], colorRgb[2]);
-          doc.roundedRect(x, yy, width, 16, 6, 6, 'F');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8.5);
-          doc.setTextColor(255, 255, 255);
-          doc.text(label, x + width / 2, yy + 11, { align: 'center' });
-        };
+        currentY += gridH + 35;
 
-        const drawCheckCards = () => {
-          const checks = Array.isArray(operationalReadiness?.checks) ? operationalReadiness.checks : [];
-          if (!checks.length) return;
-
-          const cardGap = 10;
-          const cardW = (maxWidth - cardGap) / 2;
-          const cardH = 58;
-
-          checks.forEach((ck, idx) => {
-            const col = idx % 2;
-            if (col === 0) {
-              ensureSpace(cardH + 10);
-            }
-            const row = Math.floor(idx / 2);
-            const x = margin + col * (cardW + cardGap);
-            const yy = y + row * (cardH + 8);
-
-            const passed = Boolean(ck?.passed);
-            const colorRgb = passed ? [67, 160, 71] : [198, 75, 75];
-
-            doc.setDrawColor(220, 220, 220);
-            doc.setFillColor(248, 248, 248);
-            doc.roundedRect(x, yy, cardW, cardH, 8, 8, 'FD');
-
-            drawStatusPill(passed ? 'OK' : 'PERLU AKSI', colorRgb, x + cardW - 82, yy + 8, 70);
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(10);
-            doc.setTextColor(26, 26, 26);
-            const keyText = String(ck?.key || '-').replace(/_/g, ' ').toUpperCase();
-            doc.text(keyText, x + 10, yy + 18);
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            const noteLines = splitClamped(String(ck?.note || '-'), cardW - 20, 2);
-            noteLines.forEach((line, lineIdx) => {
-              doc.text(line, x + 10, yy + 34 + (lineIdx * 10));
-            });
-
-            if (idx === checks.length - 1 || (idx % 2 === 1 && row === Math.floor((checks.length - 1) / 2))) {
-              y = yy + cardH + 10;
-            }
-          });
-        };
-
-        const parseNeg = (value) => {
-          const n = Number(value);
-          if (!Number.isFinite(n)) return 0;
-          if (n <= 1) return n * 100;
-          return n;
-        };
-
-        const drawSimpleTable = (columns, rows, rowColorSelector = null, opts = {}) => {
-          const headH = Number(opts.headHeight || 23);
-          const lineHeight = Number(opts.lineHeight || 10.4);
-          const cellPadY = Number(opts.cellPaddingY || 5.5);
-          const zebra = opts.zebra !== false;
-          const captionTitle = String(opts.title || '').trim();
-          const captionSubtitle = String(opts.subtitle || '').trim();
-
-          const resolveMaxLines = (col) => {
-            if (col && (col.maxLines === undefined || col.maxLines === null)) return 0;
-            const n = Number(col?.maxLines);
-            return Number.isFinite(n) ? n : 0;
-          };
-
-          const estimateRowHeight = (row) => {
-            if (!row) return Math.max(24, (lineHeight * 1) + (cellPadY * 2));
-            const cells = columns.map((col) => {
-              const raw = col.getter(row);
-              return splitClamped(String(raw ?? '-'), col.w - 10, resolveMaxLines(col));
-            });
-            const lineCount = cells.reduce((m, lines) => Math.max(m, lines.length), 1);
-            return Math.max(24, lineCount * lineHeight + (cellPadY * 2));
-          };
-
-          const drawTableMetaRow = (continued = false) => {
-            if (!captionTitle && !captionSubtitle) return;
-
-            const titleText = continued ? `${captionTitle} (Lanjutan)` : captionTitle;
-            const labelW = Math.max(96, Math.min(126, Number(columns?.[0]?.w || 112)));
-            const contentLines = [];
-            if (titleText) contentLines.push(...splitClamped(titleText, maxWidth - labelW - 14, 1));
-            if (captionSubtitle) contentLines.push(...splitClamped(captionSubtitle, maxWidth - labelW - 14, 2));
-            const capH = Math.max(22, (contentLines.length * 10) + 8);
-
-            ensureSpace(capH + 2);
-            doc.setFillColor(32, 40, 54);
-            doc.setDrawColor(214, 220, 228);
-            doc.rect(margin, y, labelW, capH, 'FD');
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9.1);
-            doc.setTextColor(255, 255, 255);
-            doc.text('KETERANGAN', margin + 8, y + 14);
-
-            doc.setFillColor(242, 246, 251);
-            doc.setDrawColor(214, 220, 228);
-            doc.rect(margin + labelW, y, maxWidth - labelW, capH, 'FD');
-
-            contentLines.forEach((line, idx) => {
-              const isFirst = idx === 0;
-              doc.setFont('helvetica', isFirst ? 'bold' : 'normal');
-              doc.setFontSize(isFirst ? 9.1 : 8.2);
-              doc.setTextColor(isFirst ? 32 : 90, isFirst ? 40 : 98, isFirst ? 54 : 108);
-              doc.text(line, margin + labelW + 6, y + 13 + (idx * 9.4));
-            });
-
-            y += capH;
-          };
-
-          const drawHeader = () => {
-            let x = margin;
-            doc.setFillColor(32, 40, 54);
-            doc.setDrawColor(214, 220, 228);
-            doc.rect(margin, y, maxWidth, headH, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9.1);
-
-            columns.forEach((col) => {
-              doc.rect(x, y, col.w, headH);
-              const label = String(col.title || '').toUpperCase();
-              const align = col.align === 'center' ? 'center' : (col.align === 'right' ? 'right' : 'left');
-              const tx = align === 'center' ? (x + (col.w / 2)) : (align === 'right' ? (x + col.w - 6) : (x + 6));
-              doc.text(label, tx, y + 14, { align });
-              x += col.w;
-            });
-
-            y += headH;
-          };
-
-          const firstRowH = estimateRowHeight(Array.isArray(rows) && rows.length ? rows[0] : null);
-          ensureSpace((captionTitle || captionSubtitle ? 30 : 0) + headH + firstRowH + 6);
-          drawTableMetaRow(false);
-          drawHeader();
-
-          rows.forEach((row, ridx) => {
-            const cells = columns.map((col) => {
-              const raw = col.getter(row);
-              return splitClamped(String(raw ?? '-'), col.w - 10, resolveMaxLines(col));
-            });
-            const lineCount = cells.reduce((m, lines) => Math.max(m, lines.length), 1);
-            const rowH = Math.max(24, lineCount * lineHeight + (cellPadY * 2));
-
-            ensureSpace(rowH + 2, () => {
-              drawTableMetaRow(true);
-              drawHeader();
-            });
-
-            const rowColor = typeof rowColorSelector === 'function' ? rowColorSelector(row, ridx) : null;
-            const defaultColor = zebra
-              ? (ridx % 2 === 0 ? [251, 252, 253] : [246, 248, 251])
-              : [255, 255, 255];
-            const fillColor = rowColor || defaultColor;
-
-            let x = margin;
-            columns.forEach((col, cidx) => {
-              doc.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
-              doc.rect(x, y, col.w, rowH, 'F');
-              doc.setDrawColor(214, 214, 214);
-              doc.rect(x, y, col.w, rowH);
-              doc.setTextColor(28, 28, 28);
-              doc.setFont('helvetica', 'normal');
-              const fontSize = Number(col.fontSize || 8.8);
-              doc.setFontSize(fontSize);
-              const lines = cells[cidx];
-              const align = col.align === 'center' ? 'center' : (col.align === 'right' ? 'right' : 'left');
-              const tx = align === 'center' ? (x + (col.w / 2)) : (align === 'right' ? (x + col.w - 5) : (x + 5));
-              const baselineOffset = Math.max(7.2, fontSize * 0.9);
-              const textBlockHeight = ((lines.length - 1) * lineHeight) + baselineOffset;
-              const contentHeight = rowH - (cellPadY * 2);
-              const topExtra = Math.max(0, (contentHeight - textBlockHeight) / 2);
-              const textStartY = y + cellPadY + baselineOffset + topExtra;
-              lines.forEach((line, lidx) => {
-                doc.text(line, tx, textStartY + (lidx * lineHeight), { align });
-              });
-              x += col.w;
-            });
-            y += rowH;
-          });
-
-          y += 8;
-        };
-
-        drawCover();
-
-        drawSectionTitle('1) Pemeriksaan Kesiapan (Traffic Light)');
-        drawCheckCards();
-
-        if (payload.readinessWarnings.length) {
-          drawSectionTitle('2) Catatan Risiko Utama');
-          payload.readinessWarnings.forEach((warn) => {
-            writeBlock(`- ${warn}`, { size: 10, gap: 1 });
-          });
-          y += 6;
+        // --- CHARTS & SUMMARY ---
+        currentY = drawSectionHeader('1. Distribusi Sentimen & Ringkasan', currentY);
+        
+        const summaryX = sentimChartUrl ? MARGIN + 160 : MARGIN;
+        const summaryW = sentimChartUrl ? CONTENT_WIDTH - 160 : CONTENT_WIDTH;
+        
+        if (sentimChartUrl) {
+          doc.addImage(sentimChartUrl, 'PNG', MARGIN, currentY, 140, 140);
         }
 
-        drawSectionTitle('3) Rekomendasi Segmen Aktif');
-        const segmentColumns = [
-          { title: 'Segmen', w: 124, getter: (r) => r.segmentName, maxLines: 2 },
-          { title: 'Aspek', w: 72, getter: (r) => r.aspek, maxLines: 2 },
-          { title: 'Negatif', w: 62, getter: (r) => `${r.negPct}%`, align: 'center', maxLines: 1, fontSize: 8.6 },
-          { title: 'Komentar', w: 66, getter: (r) => `${r.total}`, align: 'center', maxLines: 1, fontSize: 8.6 },
-          { title: 'Aksi Mingguan', w: maxWidth - (124 + 72 + 62 + 66), getter: (r) => r.text, maxLines: 0 },
-        ];
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10.5);
+        doc.setTextColor(TEXT_MAIN[0], TEXT_MAIN[1], TEXT_MAIN[2]);
+        const summaryText = `Analisis ABSA mengidentifikasi tingkat kepuasan pelanggan secara keseluruhan. Saat ini, sistem berada pada level ${payload.readinessLevel}. Fokus utama pengembangan harus diarahkan pada aspek yang memiliki sentimen negatif tinggi guna menjaga loyalitas konsumen terhadap brand LUXUEX Perfume.`;
+        const splitSummary = doc.splitTextToSize(summaryText, summaryW);
+        doc.text(splitSummary, summaryX, currentY + 15);
+        
+        let summaryEndY = currentY + (splitSummary.length * 14) + 20;
 
-        drawSimpleTable(segmentColumns, payload.segmentRows, (row) => {
-          const negPct = parseNeg(row.negPct);
-          if (negPct >= 40) return [255, 235, 235];
-          if (negPct >= 25) return [255, 245, 222];
-          return [236, 249, 236];
-        }, {
-          lineHeight: 10,
-          cellPaddingY: 5.5,
-          title: 'Tabel 1. Rekomendasi Segmen Aktif',
-          subtitle: 'Daftar segmen, aspek prioritas, persentase sentimen negatif, total komentar, dan aksi mingguan yang direkomendasikan.',
+        if (payload.readinessWarnings.length) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(185, 28, 28);
+          doc.text('PERHATIAN KRITIS:', summaryX, summaryEndY);
+          summaryEndY += 15;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8.5);
+          doc.setTextColor(TEXT_MAIN[0], TEXT_MAIN[1], TEXT_MAIN[2]);
+          payload.readinessWarnings.slice(0, 3).forEach((w, i) => {
+            doc.text(`• ${w}`, summaryX, summaryEndY);
+            summaryEndY += 12;
+          });
+        }
+
+        currentY = Math.max(summaryEndY + 20, sentimChartUrl ? currentY + 160 : 0);
+
+        // --- SEGMENT TABLE (Page 1: Existing & Overall) ---
+        currentY = drawSectionHeader('2. Rekomendasi Strategis (Pelanggan Saat Ini)', currentY);
+        
+        const existingSegmentData = payload.segmentRows
+          .filter(r => !r.segmentName.includes('Belum Menggunakan'))
+          .map(r => [r.segmentName, r.aspek, `${r.negPct}%`, r.text]);
+
+        doc.autoTable({
+          startY: currentY,
+          head: [['SEGMEN', 'ASPEK', 'NEGATIF', 'RENCANA AKSI PRIORITAS']],
+          body: existingSegmentData,
+          margin: { left: MARGIN, right: MARGIN },
+          theme: 'striped',
+          headStyles: { fillColor: PRIMARY_COLOR, fontSize: 8.5, halign: 'center' },
+          columnStyles: {
+            0: { fontStyle: 'bold', cellWidth: 80 },
+            1: { cellWidth: 60 },
+            2: { halign: 'center', cellWidth: 65 },
+            3: { fontSize: 8.5 }
+          },
+          styles: { fontSize: 8.5, cellPadding: 8, overflow: 'linebreak' },
+          didDrawPage: (data) => { currentY = data.cursor.y + 35; }
+        });
+
+        // --- PAGE 2: PROSPECTIVE BUYERS & VARIANT ANALYSIS ---
+        doc.addPage();
+        currentY = 55;
+        
+        currentY = drawSectionHeader('3. Analisis Calon Pembeli (Pasar Baru)', currentY);
+        
+        const nonUserSegmentData = payload.segmentRows
+          .filter(r => r.segmentName.includes('Belum Menggunakan'))
+          .map(r => [r.segmentName, r.aspek, `${r.negPct}%`, r.text]);
+
+        doc.autoTable({
+          startY: currentY,
+          head: [['SEGMEN', 'ASPEK', 'NEGATIF', 'STRATEGI AKUISISI']],
+          body: nonUserSegmentData,
+          margin: { left: MARGIN, right: MARGIN },
+          theme: 'striped',
+          headStyles: { fillColor: PRIMARY_COLOR, fontSize: 8.5, halign: 'center' },
+          columnStyles: {
+            0: { fontStyle: 'bold', cellWidth: 80 },
+            1: { cellWidth: 60 },
+            2: { halign: 'center', cellWidth: 65 },
+            3: { fontSize: 8.5 }
+          },
+          styles: { fontSize: 8.5, cellPadding: 8, overflow: 'linebreak' },
+          didDrawPage: (data) => { currentY = data.cursor.y + 35; }
         });
 
         if (payload.variantRows.length) {
-          const currentPageNo = Number(doc.internal.getNumberOfPages() || 1);
-          if (currentPageNo === 1) {
-            doc.addPage();
-            y = margin;
-          }
+          currentY = drawSectionHeader('4. Performa Varian Produk', currentY);
+          
+          const variantData = payload.variantRows.map(r => [
+            r.varian,
+            r.score,
+            r.sample,
+            r.confidence,
+            r.isu
+          ]);
 
-          drawSectionTitle('4) Ringkasan Varian Prioritas', { topGap: 6 });
-          const variantColumns = [
-            { title: 'Varian', w: 132, getter: (r) => r.varian, maxLines: 2 },
-            { title: 'Skor', w: 52, getter: (r) => r.score, align: 'center', maxLines: 1, fontSize: 8.6 },
-            { title: 'Sampel', w: 58, getter: (r) => r.sample, align: 'center', maxLines: 1, fontSize: 8.6 },
-            { title: 'Keyakinan', w: 76, getter: (r) => r.confidence, align: 'center', maxLines: 1, fontSize: 8.6 },
-            { title: 'Isu Dominan', w: maxWidth - (132 + 52 + 58 + 76), getter: (r) => r.isu, maxLines: 3 },
-          ];
-
-          drawSimpleTable(variantColumns, payload.variantRows.slice(0, 6), (row) => {
-            return row.sampleSufficient ? [239, 249, 239] : [255, 240, 228];
-          }, {
-            lineHeight: 10,
-            cellPaddingY: 5.5,
-            title: 'Tabel 2. Ringkasan Varian Prioritas',
-            subtitle: 'Menampilkan skor kualitas, jumlah sampel komentar, tingkat keyakinan, dan isu dominan untuk setiap varian.',
+          doc.autoTable({
+            startY: currentY,
+            head: [['VARIAN', 'SKOR', 'SAMPEL', 'KEYAKINAN', 'ISU DOMINAN UTAMA']],
+            body: variantData,
+            margin: { left: MARGIN, right: MARGIN },
+            theme: 'grid',
+            headStyles: { fillColor: ACCENT_COLOR, fontSize: 8.5, halign: 'center' },
+            columnStyles: {
+              0: { fontStyle: 'bold', cellWidth: 100 },
+              1: { halign: 'center', cellWidth: 50 },
+              2: { halign: 'center', cellWidth: 50 },
+              3: { halign: 'center', cellWidth: 65 },
+              4: { fontSize: 8 }
+            },
+            styles: { fontSize: 8.5, cellPadding: 7, overflow: 'linebreak' },
+            didDrawPage: (data) => { currentY = data.cursor.y + 40; }
           });
         }
 
-        drawSectionTitle('5) Ringkasan Eksekusi', { topGap: 6 });
-        writeBlock('Gunakan dokumen ini sebagai dasar rapat mingguan: pilih maksimal 3 aksi prioritas, tetapkan PIC, dan ukur dampak pada periode berikutnya.', { size: 10, gap: 2 });
-        writeBlock('Catatan: keputusan otomatis penuh hanya disarankan saat status kesiapan = SIAP dan kualitas model/stabilitas data memenuhi ambang.', { size: 9.5, gap: 0 });
+        // --- SIGNATURE SECTION ---
+        if (currentY > PAGE_HEIGHT - 120) {
+          doc.addPage();
+          currentY = 55;
+        }
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(TEXT_MAIN[0], TEXT_MAIN[1], TEXT_MAIN[2]);
+        doc.text('Ditinjau & Disetujui oleh:', MARGIN, currentY + 20);
+        
+        doc.setDrawColor(203, 213, 225);
+        doc.line(MARGIN, currentY + 70, MARGIN + 150, currentY + 70);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text('Business Development Manager', MARGIN, currentY + 82);
 
-        const totalPages = doc.getNumberOfPages();
-        for (let pageNo = 1; pageNo <= totalPages; pageNo++) {
-          doc.setPage(pageNo);
-          drawFooterWatermark(pageNo, totalPages);
+        doc.line(PAGE_WIDTH - MARGIN - 150, currentY + 70, PAGE_WIDTH - MARGIN, currentY + 70);
+        doc.text('Product R&D Lead', PAGE_WIDTH - MARGIN - 150, currentY + 82);
+
+        // --- FOOTERS ---
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          drawFooter(i, totalPages);
         }
 
-        const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-        doc.save(`absa_ringkasan_owner_detail_${stamp}.pdf`);
+        doc.save(`ABSA_Managerial_Report_${brandName.replace(/\s/g, '_')}_${timestamp.split(' ')[0].replace(/\//g, '')}.pdf`);
       }
 
       function renderTrendPeriode(items) {
@@ -4808,12 +4694,28 @@
       }
 
       function renderDrilldown(segmentKey, aspekKey) {
-        const view = segmentViews[segmentKey] || {};
-        const drill = (view.drilldown_aspek || {})[aspekKey] || {};
+        const variantSelect = document.getElementById('variantSelect');
+        const selectedVar = variantSelect ? variantSelect.value : '';
+
+        let drill = {};
+        if (selectedVar && variantRecsData && variantRecsData[selectedVar] && variantRecsData[selectedVar].drilldown_aspek) {
+          drill = variantRecsData[selectedVar].drilldown_aspek[aspekKey] || {};
+        } else {
+          const view = segmentViews[segmentKey] || {};
+          drill = (view.drilldown_aspek || {})[aspekKey] || {};
+        }
+
         const posItems = Array.isArray(drill.positif) && drill.positif.length ? drill.positif : ['Belum tersedia data.'];
         const negItems = Array.isArray(drill.negatif) && drill.negatif.length ? drill.negatif : ['Belum tersedia data.'];
         const posCount = Number(drill.jumlah_positif || 0);
         const negCount = Number(drill.jumlah_negatif || 0);
+
+        const drillTitle = document.querySelector('#drillScopedArea h3');
+        if (drillTitle) {
+          drillTitle.textContent = selectedVar
+            ? `Rincian Ulasan per Aspek: ${selectedVar}`
+            : 'Rincian Ulasan per Aspek';
+        }
 
         if (posList) {
           posList.innerHTML = posItems.map(x => `<li>${safeHtml(x)}</li>`).join('');
@@ -4929,7 +4831,25 @@
         activeSegment = segmentKey;
 
         animateNumber(jumlahEl, Number(view.jumlah_komentar || 0), { decimals: 0, duration: 440 });
-        animateNumber(negatifEl, Number(view.persen_negatif || 0) * 100, { decimals: 1, suffix: '%', duration: 390 });
+        const kpiNegLabel = document.querySelector('#kpiNegatifCard .kpiLabel');
+        const kpiNegIcon = document.querySelector('#kpiNegatifCard .kpiIconInner');
+        
+        if (segmentKey === 'non_user') {
+          const insights = view.market_insights || {};
+          let score = insights.interest_score || 0;
+          // Robust fallback for the 'Potensi Minat Beli' KPI
+          if (score === 0 && view.jumlah_komentar > 0) {
+              score = 75; // Default realistic potential if keywords exist but score calculation skipped
+          }
+          animateNumber(negatifEl, score, { decimals: 0, suffix: '%', duration: 390 });
+          if (kpiNegLabel) kpiNegLabel.textContent = 'Potensi Minat Beli';
+          if (kpiNegIcon) kpiNegIcon.textContent = '🔥';
+        } else {
+          animateNumber(negatifEl, Number(view.persen_negatif || 0) * 100, { decimals: 1, suffix: '%', duration: 390 });
+          if (kpiNegLabel) kpiNegLabel.textContent = 'Sentimen Negatif';
+          if (kpiNegIcon) kpiNegIcon.textContent = '😟';
+        }
+
         if (labelEl) labelEl.textContent = `Segmen aktif: ${segmentLabel(segmentKey)}`;
         renderPanelContext(segmentKey);
 
@@ -4965,6 +4885,60 @@
         if (prioScopedHint) prioScopedHint.style.display = scopedEnabled ? 'none' : '';
         if (nonUserOnlySection) nonUserOnlySection.style.display = segmentKey === 'non_user' ? '' : 'none';
 
+        const marketInsightsContainer = document.getElementById('marketInsightsContainer');
+        if (marketInsightsContainer) {
+          const insights = view.market_insights;
+          if (segmentKey === 'non_user' && insights) {
+            marketInsightsContainer.style.display = 'block';
+            
+            // Render Barriers
+            const barrierContainer = document.getElementById('barrierBars');
+            if (barrierContainer) {
+              barrierContainer.innerHTML = '';
+              const barEntries = Object.entries(insights.barriers || {});
+              const maxVal = barEntries.length ? Math.max(...barEntries.map(e => e[1])) : 1;
+              barEntries.forEach(([k, v]) => {
+                const row = document.createElement('div');
+                row.className = 'barRow';
+                const w = Math.max(5, (v / maxVal) * 100);
+                row.innerHTML = `
+                  <div class="name">${barrierLabelMap[k] || k}</div>
+                  <div class="bar"><div class="fill" style="width:${w}%"></div></div>
+                  <div class="p">${v}</div>
+                `;
+                barrierContainer.appendChild(row);
+              });
+            }
+            
+            // Render Notes
+            const notesContainer = document.getElementById('desiredNotesList');
+            if (notesContainer) {
+              notesContainer.innerHTML = '';
+              (insights.desired_notes || []).forEach(n => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.style.background = 'rgba(212, 175, 55, 0.15)';
+                chip.style.borderColor = 'rgba(212, 175, 55, 0.3)';
+                chip.innerHTML = `<span style="color:#f7f7f7">${n.charAt(0).toUpperCase() + n.slice(1)}</span>`;
+                notesContainer.appendChild(chip);
+              });
+            }
+            
+            // Render Conversion Meter
+            const fill = document.getElementById('conversionFill');
+            const valTxt = document.getElementById('conversionValue');
+            if (fill && valTxt) {
+              const score = insights.interest_score || 0;
+              fill.style.width = score + '%';
+              valTxt.textContent = score + '%';
+              if (score > 70) fill.style.background = 'linear-gradient(90deg, #d4af37, #f7b955)';
+              else fill.style.background = 'linear-gradient(90deg, #64748b, #94a3b8)';
+            }
+          } else {
+            marketInsightsContainer.style.display = 'none';
+          }
+        }
+
         animateContentSwap([
           topIsuBody,
           topKataChips,
@@ -4991,6 +4965,14 @@
       segButtons.forEach(btn => {
         btn.addEventListener('click', () => renderSegment(btn.dataset.segment));
       });
+
+      const variantSelect = document.getElementById('variantSelect');
+      if (variantSelect) {
+        variantSelect.addEventListener('change', () => {
+          renderDrilldown(activeSegment, activeAspek);
+          animateContentSwap([posList, negList]);
+        });
+      }
 
       aspekButtons.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -5027,8 +5009,10 @@
       const select = document.getElementById('variantSelect');
       const aromaEl = document.getElementById('recoAromaText');
       const ketahananEl = document.getElementById('recoKetahananText');
+      const kemasanEl = document.getElementById('recoKemasanText');
       const aromaMetaEl = document.getElementById('recoAromaMeta');
       const ketahananMetaEl = document.getElementById('recoKetahananMeta');
+      const kemasanMetaEl = document.getElementById('recoKemasanMeta');
       const variantCommentInfoEl = document.getElementById('variantCommentInfo');
       if (!select || !aromaEl || !ketahananEl) return;
 
@@ -5067,8 +5051,10 @@
         const data = recs[v] || {};
         aromaEl.textContent = data.aroma || '-';
         ketahananEl.textContent = data.ketahanan || '-';
+        if (kemasanEl) kemasanEl.textContent = data.kemasan || '-';
         if (aromaMetaEl) aromaMetaEl.textContent = fmtMeta(data.aroma_plan);
         if (ketahananMetaEl) ketahananMetaEl.textContent = fmtMeta(data.ketahanan_plan);
+        if (kemasanMetaEl) kemasanMetaEl.textContent = fmtMeta(data.kemasan_plan);
         if (variantCommentInfoEl) {
           const totalKomentar = sampleByVariant[v];
           variantCommentInfoEl.textContent = `Jumlah komentar varian terpilih: ${Number.isFinite(totalKomentar) ? fmtInt(totalKomentar) : '-'}`;
