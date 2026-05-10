@@ -291,16 +291,20 @@ _TEXT_SENTIMENT_NEGATIVE_CUES = {
         "masalah", "kendala", "keluhan", "kecewa", "sayang sekali", "kurang", "tidak",
         "belum konsisten", "kurang konsisten", "tidak stabil", "belum stabil",
         "mahal", "kemahalan", "overprice", "jauh", "sulit dicari", "susah dicari", "tidak ada",
-        "kosong", "habis", "ragu", "takut", "ragu-ragu", "bingung", "kurang yakin"
+        "kosong", "habis", "ragu", "takut", "ragu-ragu", "bingung", "kurang yakin",
+        "tidak awet", "nggak awet", "kurang harum", "kurang wangi", "tidak wangi", "kurang enak",
+        "tidak enak", "kurang suka", "tidak suka", "kecewa", "buruk", "jelek"
     ],
     "aroma": [
         "aroma hilang", "aroma cepat hilang", "bau hilang", "wangi hilang", "aroma tidak konsisten",
         "tajam", "terlalu tajam", "pusing", "bikin pusing", "mual", "eneg", "menyengat", "nyegrak",
-        "terlalu kuat", "bau apek", "bau plastik", "bau alkohol", "alkohol banget"
+        "terlalu kuat", "bau apek", "bau plastik", "bau alkohol", "alkohol banget", "kurang wangi",
+        "kurang harum", "bau menyengat", "aroma aneh", "bau aneh"
     ],
     "ketahanan": [
         "ketahanan berkurang", "ketahanan kurang", "ketahanan rendah", "tahan 2 jam", "tahan 3 jam",
-        "cepat pudar", "cepat menguap", "sebentar saja", "cuma sebentar", "nggak awet"
+        "cepat pudar", "cepat menguap", "sebentar saja", "cuma sebentar", "nggak awet",
+        "kurang tahan lama", "tidak tahan lama", "tidak awet", "cepet ilang", "cepet pudar"
     ],
     "kemasan": [
         "bocor", "rembes", "rusak", "patah", "retak", "nozzle macet", "spray macet", "tutup longgar",
@@ -332,7 +336,8 @@ _TEXT_SENTIMENT_NEGATION_GUARDS = [
     "tidak cepat hilang", "tidak mudah hilang", "tidak hilang", "tidak berkurang", "tidak pudar",
     "tidak perlu disemprot ulang", "tidak perlu semprot ulang", "tidak bocor", "tidak macet",
     "tidak longgar", "nggak longgar", "ga longgar", "tidak rembes", "tidak rusak", "aman",
-    "tidak tajam", "tidak menyengat", "tidak pusing",
+    "tidak tajam", "tidak menyengat", "tidak pusing", "tidak ada masalah", "tidak pernah mengalami masalah",
+    "tidak mengalami masalah", "tidak ada keluhan", "tidak ada kendala", "baik baik saja", "aman aman saja"
 ]
 
 _TEXT_SENTIMENT_POSITIVE_CUES = {
@@ -404,6 +409,31 @@ def _infer_text_sentiment_for_aspect(text: str, aspect: str) -> str:
     critical_neg_hits = _count_phrase_hits(normalized, neg_critical_phrases)
     pos_hits = _count_phrase_hits(normalized, pos_phrases)
     negation_hits = _count_phrase_hits(normalized, _TEXT_SENTIMENT_NEGATION_GUARDS)
+
+    # **FIX**: Detect negated positive/negative cues
+    neg_prefix_pattern = r"(?<![a-z0-9])(?:tidak|kurang|nggak|ga|gak|belum|ngga)\s+(?:terlalu\s+)?(?:begitu\s+)?(?:sangat\s+)?(?:ada\s+)?(?:pernah\s+)?(?:mengalami\s+)?"
+    
+    for ph in pos_phrases:
+        if ph in normalized:
+            if " " in ph:
+                pattern = neg_prefix_pattern + re.escape(ph).replace(r"\ ", r"\s+")
+            else:
+                pattern = neg_prefix_pattern + re.escape(ph)
+            
+            if re.search(pattern, normalized):
+                neg_hits += 1
+                pos_hits = max(0, pos_hits - 1)
+
+    for ph in neg_phrases:
+        if ph in normalized:
+            if " " in ph:
+                pattern = neg_prefix_pattern + re.escape(ph).replace(r"\ ", r"\s+")
+            else:
+                pattern = neg_prefix_pattern + re.escape(ph)
+            
+            if re.search(pattern, normalized):
+                negation_hits += 1
+                neg_hits = max(0, neg_hits - 1)
 
     # Strong complaint phrases should dominate unless explicitly negated.
     if critical_neg_hits > 0 and negation_hits == 0:
@@ -2143,8 +2173,14 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
     def _resolve_aspect_sentiment(row_data, asp: str, text_value: str) -> str:
         base_sent = _row_sentiment_for_aspect(row_data, asp)
         text_hint = _infer_text_sentiment_for_aspect(text_value, asp)
-        if text_hint == "Negatif" and base_sent in ("Positif", "Netral", "Unknown"):
+        
+        # **ENHANCEMENT**: If text sentiment is clearly determined, it should be highly trusted.
+        # Especially if text is Negative, it almost always overrides a positive Likert (mismatch).
+        if text_hint == "Negatif":
             return "Negatif"
+        if text_hint == "Positif" and base_sent in ("Negatif", "Netral", "Unknown"):
+            return "Positif"
+            
         if base_sent == "Unknown":
             return text_hint
         return base_sent

@@ -950,11 +950,11 @@
 
     /* ===== TOP ISU + REKOM ===== */
     .isu {
-      grid-column: span 7
+      grid-column: span 6
     }
 
     .rekom {
-      grid-column: span 5
+      grid-column: span 12;
     }
 
     table {
@@ -1342,6 +1342,25 @@
       line-height: 1.45
     }
 
+    .rekomGrid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 1200px) {
+      .rekomGrid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .rekomGrid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .segCtl {
       grid-column: span 12;
       display: flex;
@@ -1562,7 +1581,7 @@
 
     /* ===== PRIORITAS ===== */
     .prio {
-      grid-column: span 12
+      grid-column: span 6
     }
 
     .prioRow {
@@ -1668,6 +1687,10 @@
       }
 
       .rekom {
+        grid-column: span 12
+      }
+
+      .prio {
         grid-column: span 12
       }
 
@@ -2557,6 +2580,7 @@
         padding: 3px 7px;
       }
     }
+
   </style>
 </head>
 
@@ -3427,34 +3451,35 @@
         </div>
       </div>
 
-      <div class="panel drill" id="drillScopedArea">
-        <h3>Rincian Ulasan per Aspek</h3>
-        <div class="mini" style="margin-top:-2px;margin-bottom:10px">Pilih aspek untuk menampilkan contoh komentar
-          positif dan negatif pada segmen aktif.</div>
-        <div class="segBtns" style="margin-bottom:10px;">
-          <button type="button" class="segBtn active" data-aspek="aroma">Aroma</button>
-          <button type="button" class="segBtn" data-aspek="kemasan">Kemasan</button>
-          <button type="button" class="segBtn" data-aspek="ketahanan">Ketahanan</button>
-        </div>
+      {{-- Prioritas --}}
+      <div class="panel prio" id="prioScopedArea">
+        <h3>Prioritas Perbaikan</h3>
+        <div class="mini segContext" id="panelCtxPrio" style="margin-top:-6px;margin-bottom:10px">Berdasarkan segmen
+          aktif.</div>
+        <div class="mini" style="margin-top:-6px;margin-bottom:10px">Jumlah Komentar Negatif</div>
 
-        <div class="drillGrid">
-          <div class="drillBox">
-            <h4>Komentar Positif <span class="drillCount" id="drillPositifCount">(0)</span></h4>
-            <ul class="drillList" id="drillPositifList">
-              <li>Belum tersedia data.</li>
-            </ul>
-          </div>
-          <div class="drillBox">
-            <h4>Komentar Negatif <span class="drillCount" id="drillNegatifCount">(0)</span></h4>
-            <ul class="drillList" id="drillNegatifList">
-              <li>Belum tersedia data.</li>
-            </ul>
-          </div>
+        <div id="prioritasList">
+          @forelse($prio as $p)
+            @php
+              $nm = data_get($p, 'aspek', '-');
+              $val = (int) data_get($p, 'total_negatif', 0);
+              $w = ($maxNeg > 0) ? max(3, round(($val / $maxNeg) * 100)) : 0;
+            @endphp
+            <div class="prioRow">
+              <div class="nm">{{ $nm }}</div>
+              <div class="prioBar">
+                <div class="prioFill" style="width:{{ $w }}%"></div>
+              </div>
+              <div class="prioVal">{{ $val }}</div>
+            </div>
+          @empty
+            <div class="mini">Belum tersedia prioritas. Silakan jalankan analisis terlebih dahulu.</div>
+          @endforelse
         </div>
       </div>
-      <div class="panel hintPanel" id="drillScopedHint" style="grid-column:span 12;display:none;">
-        <div class="mini">Rincian komentar per aspek hanya ditampilkan untuk segmen Seluruh Responden atau Sudah
-          Menggunakan.</div>
+      <div class="panel hintPanel" id="prioScopedHint" style="grid-column:span 12;display:none;">
+        <div class="mini">Prioritas Perbaikan hanya ditampilkan untuk segmen Seluruh Responden atau Sudah Menggunakan.
+        </div>
       </div>
 
       {{-- Rekomendasi --}}
@@ -3514,56 +3539,60 @@
               </div>
             @endif
 
-            <div class="rekomItem">
-              <div class="ricon">🌸</div>
-              <div>
-                <p class="ttl">Rekomendasi Aroma (per varian)</p>
-                <p class="txt" id="recoAromaText">{{ $defaultAromaReco }}</p>
-                <p class="mini" id="recoAromaMeta" style="margin-top:4px">{{ $defaultAromaMeta }}</p>
+            <div class="rekomGrid">
+              <div class="rekomItem">
+                <div class="ricon">🌸</div>
+                <div>
+                  <p class="ttl">Rekomendasi Aroma (per varian)</p>
+                  <p class="txt" id="recoAromaText">{{ $defaultAromaReco }}</p>
+                  <p class="mini" id="recoAromaMeta" style="margin-top:4px">{{ $defaultAromaMeta }}</p>
+                </div>
               </div>
-            </div>
 
-            <div class="rekomItem">
-              <div class="ricon">⏱️</div>
-              <div>
-                <p class="ttl">Rekomendasi Ketahanan (per varian)</p>
-                <p class="txt" id="recoKetahananText">{{ $defaultKetahananReco }}</p>
-                <p class="mini" id="recoKetahananMeta" style="margin-top:4px">{{ $defaultKetahananMeta }}</p>
+              <div class="rekomItem">
+                <div class="ricon">⏱️</div>
+                <div>
+                  <p class="ttl">Rekomendasi Ketahanan (per varian)</p>
+                  <p class="txt" id="recoKetahananText">{{ $defaultKetahananReco }}</p>
+                  <p class="mini" id="recoKetahananMeta" style="margin-top:4px">{{ $defaultKetahananMeta }}</p>
+                </div>
               </div>
-            </div>
 
-            <div class="rekomItem">
-              <div class="ricon">📦</div>
-              <div>
-                <p class="ttl">Rekomendasi Kemasan (per varian)</p>
-                <p class="txt" id="recoKemasanText">{{ $defaultKemasanReco }}</p>
-                <p class="mini" id="recoKemasanMeta" style="margin-top:4px">{{ $defaultKemasanMeta }}</p>
+              <div class="rekomItem">
+                <div class="ricon">📦</div>
+                <div>
+                  <p class="ttl">Rekomendasi Kemasan (per varian)</p>
+                  <p class="txt" id="recoKemasanText">{{ $defaultKemasanReco }}</p>
+                  <p class="mini" id="recoKemasanMeta" style="margin-top:4px">{{ $defaultKemasanMeta }}</p>
+                </div>
               </div>
             </div>
           </div>
           <div id="variantScopedHint" class="mini" style="margin-top:8px;display:none;">Konten varian hanya ditampilkan
             untuk segmen Seluruh Responden atau Sudah Menggunakan.</div>
         @else
-          @forelse($rekom as $r)
-            <div class="rekomItem">
-              <div class="ricon">★</div>
-              <div>
-                <p class="ttl">{{ data_get($r, 'aspek', '-') }}</p>
-                <p class="txt">{{ data_get($r, 'text', '-') }}</p>
-                <p class="mini" style="margin-top:4px">
-                  KPI: {{ data_get($r, 'kpi_target', '-') }} • Jangka Waktu: {{ (int) data_get($r, 'horizon_hari', 0) }}
-                  hari • Tingkat Keyakinan: {{ $toConfidenceLabel(data_get($r, 'confidence', '-')) }}
-                </p>
+          <div class="rekomGrid">
+            @forelse($rekom as $r)
+              <div class="rekomItem">
+                <div class="ricon">★</div>
+                <div>
+                  <p class="ttl">{{ data_get($r, 'aspek', '-') }}</p>
+                  <p class="txt">{{ data_get($r, 'text', '-') }}</p>
+                  <p class="mini" style="margin-top:4px">
+                    KPI: {{ data_get($r, 'kpi_target', '-') }} • Jangka Waktu: {{ (int) data_get($r, 'horizon_hari', 0) }}
+                    hari • Tingkat Keyakinan: {{ $toConfidenceLabel(data_get($r, 'confidence', '-')) }}
+                  </p>
+                </div>
               </div>
-            </div>
-          @empty
-            <div class="mini" style="margin-top:8px">Belum tersedia rekomendasi. Silakan jalankan analisis terlebih dahulu.
-            </div>
-          @endforelse
+            @empty
+              <div class="mini" style="margin-top:8px">Belum tersedia rekomendasi. Silakan jalankan analisis terlebih dahulu.
+              </div>
+            @endforelse
+          </div>
         @endif
 
-        <div class="mini" style="margin-top:10px;margin-bottom:6px"><b>Rekomendasi Strategis (Segmen Aktif)</b></div>
-        <div id="segmentRekomList">
+        <div class="mini" style="margin-top:16px;margin-bottom:6px"><b>Rekomendasi Strategis (Segmen Aktif)</b></div>
+        <div id="segmentRekomList" class="rekomGrid" style="margin-top:0">
           @forelse($rekomSegmentAwal as $r)
             <div class="rekomItem">
               <div class="ricon">★</div>
@@ -3582,35 +3611,35 @@
         </div>
       </div>
 
-      {{-- Prioritas --}}
-      <div class="panel prio" id="prioScopedArea">
-        <h3>Prioritas Perbaikan</h3>
-        <div class="mini segContext" id="panelCtxPrio" style="margin-top:-6px;margin-bottom:10px">Berdasarkan segmen
-          aktif.</div>
-        <div class="mini" style="margin-top:-6px;margin-bottom:10px">Jumlah Komentar Negatif</div>
+      {{-- Drilldown (Moved to bottom) --}}
+      <div class="panel drill" id="drillScopedArea">
+        <h3>Rincian Ulasan per Aspek</h3>
+        <div class="mini" style="margin-top:-2px;margin-bottom:10px">Pilih aspek untuk menampilkan contoh komentar
+          positif dan negatif pada segmen aktif.</div>
+        <div class="segBtns" style="margin-bottom:10px;">
+          <button type="button" class="segBtn active" data-aspek="aroma">Aroma</button>
+          <button type="button" class="segBtn" data-aspek="kemasan">Kemasan</button>
+          <button type="button" class="segBtn" data-aspek="ketahanan">Ketahanan</button>
+        </div>
 
-        <div id="prioritasList">
-          @forelse($prio as $p)
-            @php
-              $nm = data_get($p, 'aspek', '-');
-              $val = (int) data_get($p, 'total_negatif', 0);
-              $w = ($maxNeg > 0) ? max(3, round(($val / $maxNeg) * 100)) : 0;
-            @endphp
-            <div class="prioRow">
-              <div class="nm">{{ $nm }}</div>
-              <div class="prioBar">
-                <div class="prioFill" style="width:{{ $w }}%"></div>
-              </div>
-              <div class="prioVal">{{ $val }}</div>
-            </div>
-          @empty
-            <div class="mini">Belum tersedia prioritas. Silakan jalankan analisis terlebih dahulu.</div>
-          @endforelse
+        <div class="drillGrid">
+          <div class="drillBox">
+            <h4>Komentar Positif <span class="drillCount" id="drillPositifCount">(0)</span></h4>
+            <ul class="drillList" id="drillPositifList">
+              <li>Belum tersedia data.</li>
+            </ul>
+          </div>
+          <div class="drillBox">
+            <h4>Komentar Negatif <span class="drillCount" id="drillNegatifCount">(0)</span></h4>
+            <ul class="drillList" id="drillNegatifList">
+              <li>Belum tersedia data.</li>
+            </ul>
+          </div>
         </div>
       </div>
-      <div class="panel hintPanel" id="prioScopedHint" style="grid-column:span 12;display:none;">
-        <div class="mini">Prioritas Perbaikan hanya ditampilkan untuk segmen Seluruh Responden atau Sudah Menggunakan.
-        </div>
+      <div class="panel hintPanel" id="drillScopedHint" style="grid-column:span 12;display:none;">
+        <div class="mini">Rincian komentar per aspek hanya ditampilkan untuk segmen Seluruh Responden atau Sudah
+          Menggunakan.</div>
       </div>
 
     </div>
