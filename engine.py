@@ -268,7 +268,10 @@ _STOPWORDS_ID = {
     "yang","dan","di","ke","dari","untuk","dengan","atau","pada","ini","itu","saya","aku","kami","kita",
     "ya","yg","aja","kok","banget","sih","udah","sudah","karena","juga","jadi",
     "lebih","sangat","sekali","nya","deh","dong","lah","pun","dalam","oleh","buat","bagi","ada",
-    "the","a","an","to","of","in","is","are"
+    "the","a","an","to","of","in","is","are",
+    "jam","belum","pakai","beli","kalau","kalo","biar","bisa","banyak","harus","paling","coba","bikin",
+    "gak","nggak","tidak","sama","suka","ingin","mau","terus","lagi","kayak","pas","jika","mungkin",
+    "biar","bukan","tapi","cuma","hanya","pasti"
 }
 
 # Aspect keywords (common product aspects in Indonesian)
@@ -1899,6 +1902,10 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
     GENERIC_ISSUE_TOKENS = {
         "parfum", "produk", "wangi", "harum", "tahan", "lama", "bagus", "baik", "oke",
         "enak", "suka", "banget", "sekali", "cukup", "lebih",  "udah", "sudah",
+        "masih", "terlalu", "terasa", "akhir", "kurang", "sangat", "agak", "lumayan",
+        "karena", "kalau", "cuma", "hanya", "terus", "lagi", "bikin", "ketahanan", "aroma", "kemasan", "tekstur",
+        "wanginya", "aromanya", "kemasannya", "teksturnya", "ketahanannya", "botolnya", "tutupnya", "parfumnya",
+        "produknya", "cepat", "lembut", "kasar", "biasa", "seperti", "kayak", "pas"
     }
 
     def _extract_issue_terms_for_aspect(aspect: str, tokens: List[str], limit: int = 5) -> List[str]:
@@ -2224,6 +2231,22 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         
         return {"total": total, "negatif": negatif}
 
+    variant_list = []
+    variant_rankings = []
+    variant_recommendations = {}
+    kemasan_reco_global = "-"
+    kemasan_plan_global = {
+        "text": "-",
+        "why": "Data tidak mencukupi untuk analisis kemasan lintas varian.",
+        "aksi_utama": "-",
+        "kpi_target": "-",
+        "horizon_hari": 0,
+        "confidence": "low",
+        "issue_terms": [],
+        "cluster": "general",
+        "data": {"context": "Global", "negatif": 0, "total": 0, "persen_negatif": 0.0},
+    }
+
     if variant_col and variant_col in df.columns:
         variants_series = df[variant_col].fillna("").astype(str).str.strip()
         variant_list = [v for v in variants_series.unique().tolist() if v and v.lower() != "nan"]
@@ -2270,11 +2293,16 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         neg_mask_kemasan = _get_aspect_sentiment_mask("kemasan", "Negatif")
 
         if likert_cols:
-            def _row_total_sent(row):
+            def _row_total_sent_neg(row):
                 return _row_sentiment(row.to_dict()) == "Negatif"
-            neg_mask_total = df.apply(_row_total_sent, axis=1)
+            neg_mask_total = df.apply(_row_total_sent_neg, axis=1)
+            
+            def _row_total_sent_pos(row):
+                return _row_sentiment(row.to_dict()) == "Positif"
+            pos_mask_total = df.apply(_row_total_sent_pos, axis=1)
         else:
             neg_mask_total = pd.Series([False] * len(df), index=df.index)
+            pos_mask_total = pd.Series([False] * len(df), index=df.index)
 
         for var in variant_list:
             var_mask = variants_series.str.lower() == var.lower()
@@ -2390,31 +2418,158 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                     "jumlah_positif": int(asp_pos_mask_local.sum()),
                 }
 
-            issue_text_sources = []
+            # KEKUATAN & KELEMAHAN (Strength & Weakness)
+            neg_text_sources = []
+            pos_text_sources = []
             for colname in [aspect_comment_cols.get("aroma"), aspect_comment_cols.get("ketahanan"), text_col]:
                 if colname and colname in df.columns:
-                    issue_text_sources.extend(df.loc[var_mask & neg_mask_total, colname].dropna().astype(str).tolist())
+                    neg_text_sources.extend(df.loc[var_mask & neg_mask_total, colname].dropna().astype(str).tolist())
+                    pos_text_sources.extend(df.loc[var_mask & pos_mask_total, colname].dropna().astype(str).tolist())
 
-            issue_tokens = []
-            for txt in issue_text_sources:
-                issue_tokens.extend(tokenize_id(str(txt)))
+            neg_tokens = []
+            for txt in neg_text_sources:
+                neg_tokens.extend(tokenize_id(str(txt)))
+            
+            issue_candidates = set()
+            for asp_set in ISSUE_BY_ASPEK.values():
+                issue_candidates.update(asp_set)
+            weakness_filtered = [t for t in neg_tokens if t in issue_candidates and t not in GENERIC_ISSUE_TOKENS]
+            weakness_non_generic = [t for t in neg_tokens if t not in GENERIC_ISSUE_TOKENS]
 
-            issue_candidates = ISSUE_BY_ASPEK.get("aroma", set()).union(ISSUE_BY_ASPEK.get("ketahanan", set()))
-            issue_filtered = [
-                tok for tok in issue_tokens
-                if tok in issue_candidates and tok not in GENERIC_ISSUE_TOKENS
-            ]
-            issue_non_generic = [tok for tok in issue_tokens if tok not in GENERIC_ISSUE_TOKENS]
-            if issue_filtered:
-                top_issue, top_issue_freq = Counter(issue_filtered).most_common(1)[0]
-            elif issue_non_generic:
-                top_issue, top_issue_freq = Counter(issue_non_generic).most_common(1)[0]
-            elif issue_tokens:
-                top_issue, top_issue_freq = Counter(issue_tokens).most_common(1)[0]
-            else:
-                top_issue, top_issue_freq = "-", 0
+            pos_tokens = []
+            for txt in pos_text_sources:
+                pos_tokens.extend(tokenize_id(str(txt)))
+            
+            pos_stopwords = _STOPWORDS_ID.union({"parfum", "produk", "yang", "dan", "di", "ke", "dari", "buat", "sangat", "banget", "sekali", "udah", "sudah", "masih", "kalau", "karena", "untuk", "nya", "aroma", "wanginya", "aromanya", "parfumnya", "ketahanan", "kemasan", "tekstur", "cukup", "lumayan", "suka", "bagus", "enak", "mantap", "oke", "pas"})
+            
+            # WHITELIST KATA SIFAT POSITIF (Deskriptif)
+            positive_adjectives = {
+                "wangi","harum","segar","fresh","mewah","elegan","maskulin","feminin","lembut","soft",
+                "awet","tahan","lama","kuat","semerbak","nempel","enakk","mantap","keren","cocok"
+            }
+            # WHITELIST MASALAH SPESIFIK (Insightful)
+            specific_issues = {
+                "bocor","rembes","tumpah","pusing","mual","eneg","menyengat","nyengat","tajam","pudar",
+                "hilang","cepat","rusak","pecah","macet","kasar","alkohol"
+            }
+
+            pos_clean = [t for t in pos_tokens if t in positive_adjectives]
+            # REFINEMENT KELEMAHAN: Prioritaskan masalah spesifik
+            weakness_final = [t for t in neg_tokens if t in specific_issues]
+
+            def _get_aspek_name(token):
+                for asp, kws in ISSUE_BY_ASPEK.items():
+                    if token in kws: return asp.capitalize()
+                return "Umum"
+
+            # 1. Tentukan Aspek Terbaik (Kekuatan) dan Terburuk (Kelemahan)
+            asp_stats = []
+            for asp_name, data in drilldown_var.items():
+                pos = data.get("jumlah_positif", 0)
+                neg = data.get("jumlah_negatif", 0)
+                total = pos + neg
+                score = (pos / total) if total > 0 else 0
+                neg_score = (neg / total) if total > 0 else 0
+                asp_stats.append({"name": asp_name, "pos_score": score, "neg_score": neg_score, "total": total})
+
+            # Urutkan berdasarkan skor positif untuk Kekuatan
+            best_asp_list = sorted(asp_stats, key=lambda x: x["pos_score"], reverse=True)
+            # Urutkan berdasarkan skor negatif untuk Kelemahan
+            worst_asp_list = sorted(asp_stats, key=lambda x: x["neg_score"], reverse=True)
+
+            best_asp = best_asp_list[0]["name"] if best_asp_list else "Umum"
+            # Cari kelemahan pada aspek yang BERBEDA dari kekuatan (agar logis)
+            worst_asp = "Umum"
+            for wa in worst_asp_list:
+                if wa["name"] != best_asp and wa["total"] > 0:
+                    worst_asp = wa["name"]
+                    break
+            if worst_asp == "Umum" and worst_asp_list:
+                worst_asp = worst_asp_list[0]["name"]
+
+            # KAMUS KATA POSITIF PER ASPEK (Untuk klasifikasi yang akurat)
+            POS_BY_ASPEK = {
+                "kemasan": {"mewah","bagus","cantik","rapi","aman","elegan","keren","tutup","spray","semprotan","botol","kaca","tebal"},
+                "ketahanan": {"awet","tahan","lama","nempel","seharian","strong","mantap"},
+                "aroma": {"wangi","harum","segar","fresh","enak","manis","lembut","soft","mewah","maskulin","feminin","semerbak"}
+            }
+
+            # 2. Ambil Keyword berdasarkan Aspek yang terpilih (Gunakan kamus positif untuk Kekuatan)
+            def _get_top_keywords(asp_name, token_list, is_positive=True):
+                asp_key = asp_name.lower()
+                if is_positive:
+                    # Cari kata yang MEMANG milik aspek tersebut
+                    target_kws = POS_BY_ASPEK.get(asp_key, set())
+                    valid_tokens = [t for t in token_list if t in target_kws]
+                else:
+                    # Cari kata yang MEMANG milik aspek tersebut (isu negatif)
+                    target_kws = ISSUE_BY_ASPEK.get(asp_key, set())
+                    valid_tokens = [t for t in token_list if t in target_kws]
+                
+                if not valid_tokens:
+                    # Jika tidak ada kata spesifik aspek, ambil kata umum yang relevan (tapi bukan stopword)
+                    valid_tokens = [t for t in token_list if t not in pos_stopwords and len(t) >= 4]
+                    # Filter agar kata ketahanan tidak masuk ke kemasan secara liar
+                    if asp_key == "kemasan":
+                        valid_tokens = [t for t in valid_tokens if t not in POS_BY_ASPEK["ketahanan"]]
+
+                return Counter(valid_tokens).most_common(2)
+
+            # BUILD NARRATIVE STRENGTH
+            top_strength = "Performa stabil"
+            strength_kws = _get_top_keywords(best_asp, pos_tokens, is_positive=True)
+            if strength_kws:
+                k1 = strength_kws[0][0]
+                if len(strength_kws) > 1:
+                    top_strength = f"{best_asp.capitalize()} ({k1}, {strength_kws[1][0]}) dinilai sangat baik."
+                else:
+                    top_strength = f"{best_asp.capitalize()} ({k1}) menjadi daya tarik utama."
+            
+            # BUILD NARRATIVE WEAKNESS
+            top_weakness = "Tidak ditemukan isu kritis"
+            weakness_kws = _get_top_keywords(worst_asp, neg_tokens, is_positive=False)
+            if weakness_kws:
+                k1 = weakness_kws[0][0]
+                label = worst_asp.capitalize()
+                if k1 in {"cepat", "hilang", "pudar"}:
+                    top_weakness = f"Ketahanan {k1} hilang; perlu optimasi fixative."
+                elif k1 in {"bocor", "rembes", "rusak"}:
+                    top_weakness = f"Masalah pada kemasan ({k1}); cek QC tutup/seal."
+                elif k1 in {"tajam", "menyengat", "pusing"}:
+                    top_weakness = f"Aroma terlalu {k1}; pertimbangkan rebalancing top notes."
+                else:
+                    top_weakness = f"Keluhan pada {label} ({k1})."
 
             quality_score = round(max(0.0, 100.0 - float(neg_pct)), 1)
+
+            # STATUS BISNIS & REKOMENDASI AKSI
+            if quality_score >= 90 and sample_sufficient:
+                status_bisnis = "Star Product"
+                rekomendasi_utama = f"Varian unggul (Skor {quality_score}). Aksi: Jadikan '{top_strength}' sebagai hook iklan. Pertimbangkan kenaikan produksi 10-15%."
+            elif quality_score < 80 or (not sample_sufficient and neg_pct > 30):
+                status_bisnis = "Butuh Reformulasi"
+                
+                # Cari aspek paling parah
+                worst_asp_local = "aroma"
+                worst_score_local = 100
+                for a_name in ["aroma", "ketahanan", "kemasan"]:
+                    n = drilldown_var.get(a_name, {}).get("jumlah_negatif", 0)
+                    p = drilldown_var.get(a_name, {}).get("jumlah_positif", 0)
+                    if n + p > 0:
+                        sc = 100 - (n / (n + p) * 100)
+                        if sc < worst_score_local:
+                            worst_score_local = sc
+                            worst_asp_local = a_name
+                            
+                plan_dict = aroma_plan if worst_asp_local == "aroma" else (ketahanan_plan if worst_asp_local == "ketahanan" else kemasan_plan)
+                detail_reco = str(plan_dict.get("text", "Periksa kembali formulasi."))
+                rekomendasi_utama = f"Kritis: {neg_var}/{total_var} keluhan ({neg_pct}%). {detail_reco} KPI: Tekan keluhan {worst_asp_local} < 20%."
+            elif quality_score >= 85 and not sample_sufficient:
+                status_bisnis = "Potensi Scale-Up"
+                rekomendasi_utama = f"Sinyal positif (Skor {quality_score}) tapi sampel rendah ({total_var}). Aksi: Gencarkan promosi/tester untuk validasi pasar massal."
+            else:
+                status_bisnis = "Performa Stabil"
+                rekomendasi_utama = f"Status aman (Skor {quality_score}). Aksi: Fokus pada '{top_weakness}' untuk optimasi batch berikutnya. Jaga standar kualitas QC."
 
             variant_recommendations[var] = {
                 "aroma": str(aroma_plan.get("text", "-")),
@@ -2424,7 +2579,10 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 "ketahanan_plan": ketahanan_plan,
                 "kemasan_plan": kemasan_plan,
                 "drilldown_aspek": drilldown_var,
-                "top_issue": top_issue,
+                "top_strength": top_strength,
+                "top_weakness": top_weakness,
+                "status_bisnis": status_bisnis,
+                "rekomendasi_aksi": rekomendasi_utama,
                 "quality_score": quality_score,
                 "_meta": {
                     "total_komentar": total_var,
@@ -2440,8 +2598,11 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 "negatif": neg_var,
                 "persen_negatif": float(neg_pct),
                 "skor_kualitas": float(quality_score),
-                "isu_dominan": top_issue,
-                "frekuensi_isu": int(top_issue_freq),
+                "top_strength": top_strength,
+                "top_weakness": top_weakness,
+                "isu_dominan": top_weakness,  # Alias untuk kompatibilitas dashboard
+                "status_bisnis": status_bisnis,
+                "rekomendasi_aksi": rekomendasi_utama,
                 "sample_sufficient": bool(sample_sufficient),
                 "confidence_level": confidence_level,
                 "minimum_sample": MIN_VARIANT_SAMPLE,
@@ -2812,12 +2973,26 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
 
         top_isu_local = []
         for asp, toks in local_aspect_tokens.items():
-            freq = Counter(toks).most_common(1)
-            if freq:
-                kata, jumlah = freq[0]
+            issue_terms = _extract_issue_terms_for_aspect(asp, toks, limit=3)
+            
+            # Cari isu terbaik
+            best_issue = None
+            if issue_terms:
+                best_issue = issue_terms[0]
+            else:
+                # Fallback ke token non-generik paling sering
+                filtered_toks = [t for t in toks if t not in GENERIC_ISSUE_TOKENS]
+                if filtered_toks:
+                    best_issue = Counter(filtered_toks).most_common(1)[0][0]
+                else:
+                    best_issue = "-"
+                    
+            jumlah = Counter(toks).get(best_issue, 0) if best_issue != "-" else 0
+            
+            if best_issue != "-":
                 top_isu_local.append({
                     "aspek": asp.capitalize(),
-                    "isu": kata,
+                    "isu": best_issue,
                     "frekuensi": int(jumlah),
                     "negatif": int(local_aspect_counts.get(asp, Counter()).get("Negatif", 0)),
                 })
@@ -3208,6 +3383,33 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         )
         if non_user_rekom:
             segment_views["non_user"]["rekomendasi"] = non_user_rekom
+            
+        # Mapping label agar lebih rapi (human-readable)
+        barrier_labels = {
+            "harga": "Harga / Diskon",
+            "belum_tahu_produk": "Belum Tahu Produk",
+            "akses_pembelian": "Akses Pembelian",
+            "ragu_kualitas": "Keraguan Kualitas",
+            "sensitivitas": "Isu Sensitivitas",
+            "varian_tidak_cocok": "Varian Tidak Cocok"
+        }
+        need_labels = {
+            "harga_terjangkau": "Harga Terjangkau",
+            "aroma_soft": "Aroma Lebih Soft",
+            "ketahanan_lama": "Ketahanan Lama",
+            "kemasan_travel": "Kemasan Travel/Mini",
+            "jaminan_produk": "Jaminan Kualitas/Ori",
+            "rekomendasi_jelas": "Rekomendasi Jelas",
+            "kemudahan_akses": "Kemudahan Akses (Toko Lokal)"
+        }
+        
+        # Peta data dari non_user_insights ke format market_insights yang diekspektasi JS Dashboard
+        segment_views["non_user"]["market_insights"] = {
+            "barriers": {barrier_labels.get(x["label"], x["label"].replace("_", " ").title()): x["frekuensi"] for x in non_user_insights.get("barrier_top", [])},
+            "desired_notes": [{"label": need_labels.get(x["label"], x["label"].replace("_", " ").title()), "freq": x["frekuensi"]} for x in non_user_insights.get("need_top", [])],
+            "interest_score": non_user_insights.get("intent", {}).get("score", 0),
+            "top_rekomendasi": non_user_insights.get("rekomendasi_aksi", [])
+        }
 
     # operational health checks + business alerts (for real-world usage)
     health_issues = []

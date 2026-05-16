@@ -1012,9 +1012,12 @@
     }
 
     .barRow .name {
-      width: 84px;
+      flex: 0 0 140px;
       color: rgba(255, 255, 255, .72);
-      font-size: 12px
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .bar {
@@ -1039,6 +1042,18 @@
       color: rgba(255, 255, 255, .82);
       font-size: 12px;
       font-weight: 980
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 6px 12px;
+      margin: 4px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
     /* ===== TOP ISU + REKOM ===== */
@@ -3288,7 +3303,7 @@
             pendorong konversi.</div>
           <div class="mini" style="margin-bottom:12px;opacity:0.8;line-height:1.5;">
             <b>Mode analisis utama:</b>
-            {{ $segMode === 'sudah_pakai' ? 'Hanya responden yang sudah menggunakan' : 'Seluruh data (mode cadangan)' }}
+            {{ $segMode === 'sudah_pakai' ? 'Fokus spesifik pada insight calon pembeli (Non-User)' : 'Seluruh data (mode cadangan)' }}
             @if(!empty($segKolom))
               <br><b>Kolom deteksi pengalaman:</b> {{ $segKolom }}
             @endif
@@ -3305,7 +3320,7 @@
                   <div id="barrierBars" class="miniBars"></div>
                </div>
                <div class="marketBox">
-                  <div class="mini" style="margin-bottom:8px; opacity:0.7">Profil Aroma yang Dicari</div>
+                  <div class="mini" style="margin-bottom:8px; opacity:0.7">Kebutuhan Utama & Pendorong Pembelian</div>
                   <div id="desiredNotesList" class="chips" style="gap:6px; margin-top:5px;"></div>
                </div>
                <div class="marketBox" style="text-align:center">
@@ -3339,16 +3354,16 @@
             </table>
           </div>
 
-          <div class="mini" style="margin-top:2px;margin-bottom:6px"><b>Kata kunci dominan pada segmen calon pembeli</b>
+          <div class="mini" style="margin-top:2px;margin-bottom:6px"><b>Kata kunci (Keywords) dominan dari teks respons</b>
           </div>
-          <div class="chips">
+          <div class="chips" style="display:flex; flex-wrap:wrap; gap:8px;">
             @forelse(array_slice($segTopBelum, 0, 6) as $tk)
-              <div class="chip">
-                <span>{{ data_get($tk, 'kata', '-') }}</span>
-                <b>{{ (int) data_get($tk, 'frekuensi', 0) }}</b>
+              <div class="chip" style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.05); padding:4px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.1);">
+                <span style="color:rgba(255,255,255,0.9); font-weight:500;">{{ Str::title(data_get($tk, 'kata', '-')) }}</span>
+                <span style="background:rgba(212,175,55,0.2); color:var(--gold); padding:2px 6px; border-radius:10px; font-size:10px; font-weight:bold;">{{ (int) data_get($tk, 'frekuensi', 0) }}</span>
               </div>
             @empty
-              <div class="mini">Belum terdapat kata kunci yang terdeteksi pada segmen ini.</div>
+              <div class="mini" style="opacity:0.6">Belum terdapat kata kunci yang cukup signifikan.</div>
             @endforelse
           </div>
 
@@ -4316,8 +4331,13 @@
         };
 
         const segmentRows = [];
+        let marketInsights = null;
+        
         ['all', 'used', 'non_user'].forEach((key) => {
           const view = segmentViews[key] || {};
+          if (key === 'non_user' && view.market_insights) {
+             marketInsights = view.market_insights;
+          }
           const recs = Array.isArray(view.rekomendasi) ? view.rekomendasi : [];
           const segmentName = segmentLabel(key);
 
@@ -4345,11 +4365,12 @@
 
         const variantRows = Array.isArray(variantRankingsData) ? variantRankingsData.slice(0, 8).map((row) => ({
           varian: safeText(row.varian, 'Varian belum diisi'),
-          isu: safeText(row.isu_dominan, 'Belum ada isu dominan'),
-          confidence: toConfidenceLabel(row.confidence_level),
           score: Number(row.skor_kualitas || 0).toFixed(1),
           sample: Number(row.total_komentar || 0),
-          sampleSufficient: Boolean(row.sample_sufficient),
+          status: safeText(row.status_bisnis, '-'),
+          strength: safeText(row.top_strength, '-'),
+          weakness: safeText(row.top_weakness, '-'),
+          rekomendasi: safeText(row.rekomendasi_aksi, '-')
         })) : [];
 
         return {
@@ -4359,6 +4380,7 @@
           readinessWarnings,
           segmentRows,
           variantRows,
+          marketInsights,
         };
       }
 
@@ -4450,7 +4472,7 @@
         drawKpiBox('TOTAL RESPONDEN', `${variantRankingsData.reduce((acc, r) => acc + (Number(r.total_komentar) || 0), 0)}`, MARGIN + gridW + 10, currentY);
         drawKpiBox('STATUS SISTEM', payload.readinessLevel, MARGIN + (gridW * 2) + 20, currentY);
 
-        currentY += gridH + 35;
+        currentY += gridH + 25;
 
         // --- CHARTS & SUMMARY ---
         currentY = drawSectionHeader('1. Distribusi Sentimen & Ringkasan', currentY);
@@ -4476,17 +4498,17 @@
           doc.setFontSize(8.5);
           doc.setTextColor(185, 28, 28);
           doc.text('PERHATIAN KRITIS:', summaryX, summaryEndY);
-          summaryEndY += 15;
+          summaryEndY += 12;
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8.5);
           doc.setTextColor(TEXT_MAIN[0], TEXT_MAIN[1], TEXT_MAIN[2]);
           payload.readinessWarnings.slice(0, 3).forEach((w, i) => {
             doc.text(`• ${w}`, summaryX, summaryEndY);
-            summaryEndY += 12;
+            summaryEndY += 11;
           });
         }
 
-        currentY = Math.max(summaryEndY + 20, sentimChartUrl ? currentY + 160 : 0);
+        currentY = Math.max(summaryEndY + 15, sentimChartUrl ? currentY + 150 : 0);
 
         // --- SEGMENT TABLE (Page 1: Existing & Overall) ---
         currentY = drawSectionHeader('2. Rekomendasi Strategis (Pelanggan Saat Ini)', currentY);
@@ -4508,13 +4530,13 @@
             2: { halign: 'center', cellWidth: 65 },
             3: { fontSize: 8.5 }
           },
-          styles: { fontSize: 8.5, cellPadding: 8, overflow: 'linebreak' },
-          didDrawPage: (data) => { currentY = data.cursor.y + 35; }
+          styles: { fontSize: 8.5, cellPadding: 5, overflow: 'linebreak' },
+          didDrawPage: (data) => { currentY = data.cursor.y + 20; }
         });
 
         // --- PAGE 2: PROSPECTIVE BUYERS & VARIANT ANALYSIS ---
         doc.addPage();
-        currentY = 55;
+        currentY = 45;
         
         currentY = drawSectionHeader('3. Analisis Calon Pembeli (Pasar Baru)', currentY);
         
@@ -4535,9 +4557,78 @@
             2: { halign: 'center', cellWidth: 65 },
             3: { fontSize: 8.5 }
           },
-          styles: { fontSize: 8.5, cellPadding: 8, overflow: 'linebreak' },
-          didDrawPage: (data) => { currentY = data.cursor.y + 35; }
+          styles: { fontSize: 8.5, cellPadding: 5, overflow: 'linebreak' },
+          didDrawPage: (data) => { currentY = data.cursor.y + 15; }
         });
+
+        if (payload.marketInsights) {
+          const mi = payload.marketInsights;
+          const startX = MARGIN;
+          let miY = currentY + 5;
+
+          const barEntries = Object.entries(mi.barriers || {});
+          let barriersText = barEntries.length > 0 ? barEntries.map(([k, v]) => `${k} (${v})`).join(', ') : '-';
+          const splitBarriers = doc.splitTextToSize(barriersText, CONTENT_WIDTH - 120);
+          
+          let needsText = mi.desired_notes && mi.desired_notes.length > 0 ? mi.desired_notes.map(n => typeof n === 'object' ? `${n.label} (${n.freq || 0})` : n).join(', ') : '-';
+          const splitNeeds = doc.splitTextToSize(needsText, CONTENT_WIDTH - 120);
+          
+          let recoText = mi.top_rekomendasi && mi.top_rekomendasi.length > 0 ? mi.top_rekomendasi.map(r => `• ${r}`).join('\n') : '-';
+          const splitReco = doc.splitTextToSize(recoText, CONTENT_WIDTH - 30);
+
+          let barrierH = splitBarriers.length * 12;
+          let needsH = splitNeeds.length * 12;
+          let recoH = splitReco.length * 12;
+          
+          let totalBoxHeight = 105 + barrierH + needsH + recoH;
+
+          if (miY + totalBoxHeight > PAGE_HEIGHT - 50) {
+            doc.addPage();
+            miY = 45;
+          }
+
+          doc.setFillColor(255, 253, 245);
+          doc.setDrawColor(212, 175, 55);
+          doc.roundedRect(startX, miY, CONTENT_WIDTH, totalBoxHeight, 4, 4, 'FD');
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(212, 175, 55);
+          doc.text('INSIGHT EKSPANSI PASAR (CALON PEMBELI)', startX + 15, miY + 20);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.setTextColor(TEXT_MAIN[0], TEXT_MAIN[1], TEXT_MAIN[2]);
+          
+          let textY = miY + 40;
+          doc.setFont('helvetica', 'bold');
+          doc.text('Peluang Konversi:', startX + 15, textY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${mi.interest_score || 0}%`, startX + 110, textY);
+          textY += 15;
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('Hambatan Utama:', startX + 15, textY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(splitBarriers, startX + 110, textY);
+          textY += barrierH + 5;
+          
+          doc.setFont('helvetica', 'bold');
+          doc.text('Kebutuhan Pasar:', startX + 15, textY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(splitNeeds, startX + 110, textY);
+          textY += needsH + 15;
+
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(212, 175, 55); 
+          doc.text('Saran Strategi Eksekutif:', startX + 15, textY);
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(TEXT_MAIN[0], TEXT_MAIN[1], TEXT_MAIN[2]);
+          doc.text(splitReco, startX + 15, textY + 15);
+
+          currentY = miY + totalBoxHeight + 15;
+        }
 
         if (payload.variantRows.length) {
           currentY = drawSectionHeader('4. Performa Varian Produk', currentY);
@@ -4545,49 +4636,49 @@
           const variantData = payload.variantRows.map(r => [
             r.varian,
             r.score,
-            r.sample,
-            r.confidence,
-            r.isu
+            r.status,
+            `Kekuatan: ${r.strength}\nKelemahan: ${r.weakness}`,
+            r.rekomendasi
           ]);
 
           doc.autoTable({
             startY: currentY,
-            head: [['VARIAN', 'SKOR', 'SAMPEL', 'KEYAKINAN', 'ISU DOMINAN UTAMA']],
+            head: [['VARIAN', 'SKOR', 'STATUS', 'KEKUATAN vs KELEMAHAN', 'REKOMENDASI AKSI']],
             body: variantData,
             margin: { left: MARGIN, right: MARGIN },
             theme: 'grid',
             headStyles: { fillColor: ACCENT_COLOR, fontSize: 8.5, halign: 'center' },
             columnStyles: {
-              0: { fontStyle: 'bold', cellWidth: 100 },
-              1: { halign: 'center', cellWidth: 50 },
-              2: { halign: 'center', cellWidth: 50 },
-              3: { halign: 'center', cellWidth: 65 },
+              0: { fontStyle: 'bold', cellWidth: 70 },
+              1: { halign: 'center', cellWidth: 35 },
+              2: { halign: 'center', cellWidth: 70 },
+              3: { cellWidth: 140 },
               4: { fontSize: 8 }
             },
-            styles: { fontSize: 8.5, cellPadding: 7, overflow: 'linebreak' },
-            didDrawPage: (data) => { currentY = data.cursor.y + 40; }
+            styles: { fontSize: 8, cellPadding: 5, overflow: 'linebreak' },
+            didDrawPage: (data) => { currentY = data.cursor.y + 20; }
           });
         }
 
         // --- SIGNATURE SECTION ---
-        if (currentY > PAGE_HEIGHT - 120) {
+        if (currentY > PAGE_HEIGHT - 90) {
           doc.addPage();
-          currentY = 55;
+          currentY = 45;
         }
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
         doc.setTextColor(TEXT_MAIN[0], TEXT_MAIN[1], TEXT_MAIN[2]);
-        doc.text('Ditinjau & Disetujui oleh:', MARGIN, currentY + 20);
+        doc.text('Ditinjau & Disetujui oleh:', MARGIN, currentY + 10);
         
         doc.setDrawColor(203, 213, 225);
-        doc.line(MARGIN, currentY + 70, MARGIN + 150, currentY + 70);
+        doc.line(MARGIN, currentY + 55, MARGIN + 150, currentY + 55);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
-        doc.text('Business Development Manager', MARGIN, currentY + 82);
+        doc.text('Business Development Manager', MARGIN, currentY + 67);
 
-        doc.line(PAGE_WIDTH - MARGIN - 150, currentY + 70, PAGE_WIDTH - MARGIN, currentY + 70);
-        doc.text('Product R&D Lead', PAGE_WIDTH - MARGIN - 150, currentY + 82);
+        doc.line(PAGE_WIDTH - MARGIN - 150, currentY + 55, PAGE_WIDTH - MARGIN, currentY + 55);
+        doc.text('Product R&D Lead', PAGE_WIDTH - MARGIN - 150, currentY + 67);
 
         // --- FOOTERS ---
         const totalPages = doc.internal.getNumberOfPages();
@@ -4933,7 +5024,7 @@
           return { key: 'partial', label: 'Sebagian', score: 1 };
         }
 
-        const dominantAspect = detectIssueAspect(row?.isu_dominan);
+        const dominantAspect = detectIssueAspect(row?.top_weakness || row?.isu_dominan);
         if (dominantAspect && currentTop.includes(dominantAspect)) {
           return { key: 'aligned', label: 'Selaras', score: 2 };
         }
@@ -5078,14 +5169,44 @@
             const notesContainer = document.getElementById('desiredNotesList');
             if (notesContainer) {
               notesContainer.innerHTML = '';
-              (insights.desired_notes || []).forEach(n => {
+              (insights.desired_notes || []).forEach((item, index) => {
+                const isObj = typeof item === 'object' && item !== null;
+                const n = isObj ? item.label : item;
+                const freq = isObj && item.freq ? ` <span style="opacity:0.6; font-size:10px">(${item.freq})</span>` : '';
+                
                 const chip = document.createElement('div');
                 chip.className = 'chip';
-                chip.style.background = 'rgba(212, 175, 55, 0.15)';
-                chip.style.borderColor = 'rgba(212, 175, 55, 0.3)';
-                chip.innerHTML = `<span style="color:#f7f7f7">${n.charAt(0).toUpperCase() + n.slice(1)}</span>`;
+                
+                // Highlight Kebutuhan Nomor 1
+                if (index === 0 && (insights.desired_notes || []).length > 1) {
+                   chip.style.background = 'rgba(212, 175, 55, 0.25)';
+                   chip.style.borderColor = 'rgba(212, 175, 55, 0.6)';
+                   chip.style.fontWeight = 'bold';
+                } else {
+                   chip.style.background = 'rgba(212, 175, 55, 0.1)';
+                   chip.style.borderColor = 'rgba(212, 175, 55, 0.2)';
+                }
+                
+                chip.innerHTML = `<span style="color:#f7f7f7">${n.charAt(0).toUpperCase() + n.slice(1)}${freq}</span>`;
                 notesContainer.appendChild(chip);
               });
+
+              // Render Rekomendasi Strategis (Jika Ada)
+              if (insights.top_rekomendasi && insights.top_rekomendasi.length > 0) {
+                 const alertBox = document.createElement('div');
+                 alertBox.style.marginTop = '15px';
+                 alertBox.style.padding = '10px 14px';
+                 alertBox.style.background = 'rgba(212, 175, 55, 0.08)';
+                 alertBox.style.borderLeft = '3px solid var(--gold)';
+                 alertBox.style.borderRadius = '4px';
+                 alertBox.style.fontSize = '12px';
+                 alertBox.style.color = 'rgba(255, 255, 255, 0.85)';
+                 alertBox.style.lineHeight = '1.4';
+                 
+                 let recList = insights.top_rekomendasi.map(r => `• ${r}`).join('<br>');
+                 alertBox.innerHTML = `<strong style="color:var(--gold); display:block; margin-bottom:4px">💡 Saran Strategi Eksekutif:</strong> ${recList}`;
+                 notesContainer.appendChild(alertBox);
+              }
             }
             
             // Render Conversion Meter
