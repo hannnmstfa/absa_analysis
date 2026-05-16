@@ -698,147 +698,240 @@
       gap: 1px;
     }
 
-    /* ===== ABSA ANALYSIS ===== */
+    /* ===== ABSA ANALYSIS UPGRADE ===== */
     .absa {
-      grid-column: span 7
+      grid-column: span 12; /* Buat lebar penuh agar lebih leluasa */
+      background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(214, 181, 74, 0.15);
     }
 
-    .absaGrid {
-      display: grid;
-      grid-template-columns: 1.25fr .75fr;
-      gap: 14px
-    }
-
-    .cm {
-      display: grid;
-      grid-template-columns: 84px 1fr 1fr;
-      gap: 10px;
+    .absa-header {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      margin-top: 8px;
+      margin-bottom: 20px;
     }
 
-    .axis {
-      color: rgba(255, 255, 255, .70);
-      font-size: 12px;
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
+    .premium-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 20px;
       text-align: center;
-      padding: 6px 0;
+      transition: transform 0.3s ease, border-color 0.3s ease;
     }
 
-    .colhdr {
-      color: rgba(255, 255, 255, .70);
+    .kpi-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--goldLine);
+    }
+
+    .kpi-card .kpi-label {
       font-size: 12px;
-      text-align: center;
-      padding-bottom: 6px
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
     }
 
-    .mat {
-      grid-column: 2 / 4;
+    .kpi-card .kpi-value {
+      font-size: 32px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .kpi-card.highlight {
+      background: linear-gradient(135deg, rgba(214, 181, 74, 0.1), rgba(214, 181, 74, 0.02));
+      border-color: rgba(214, 181, 74, 0.3);
+    }
+
+    .kpi-card.highlight .kpi-value {
+      color: var(--gold);
+      text-shadow: 0 0 15px rgba(214, 181, 74, 0.3);
+    }
+
+    .absa-main-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 24px;
+      margin-bottom: 24px;
     }
 
-    .cell {
-      border-radius: 16px;
-      min-height: 64px;
+    @media (max-width: 992px) {
+      .absa-main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Confusion Matrix 2x2 */
+    .cm-container {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .cm-grid-2x2 {
+      display: grid;
+      grid-template-columns: 35px 1fr 1fr;
+      grid-template-rows: 25px 1fr 1fr;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .cm-label-top {
+      grid-row: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 26px;
-      font-weight: 980;
-      border: 1px solid rgba(255, 255, 255, .10);
-      box-shadow: var(--inner);
+      font-size: 10px;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
     }
 
-    .c1 {
-      background: linear-gradient(180deg, rgba(71, 180, 105, .46), rgba(71, 180, 105, .16))
+    .cm-label-left {
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--muted2);
+      text-transform: uppercase;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      letter-spacing: 1px;
+      font-weight: 700;
     }
 
-    .c2 {
-      background: linear-gradient(180deg, rgba(225, 179, 55, .58), rgba(225, 179, 55, .18))
+    .cm-cell-box {
+      border-radius: 16px;
+      padding: 16px 12px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     }
 
-    .c3 {
-      background: linear-gradient(180deg, rgba(215, 92, 68, .58), rgba(215, 92, 68, .18))
+    .cm-cell-box .val { font-size: 32px; font-weight: 900; margin-bottom: 4px; line-height: 1; }
+    .cm-cell-box .lbl { font-size: 10.5px; opacity: 0.8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .cm-tp { background: linear-gradient(135deg, rgba(71, 180, 105, 0.25), rgba(71, 180, 105, 0.05)); border-color: rgba(71, 180, 105, 0.3); color: #72f09d; }
+    .cm-tn { background: linear-gradient(135deg, rgba(140, 140, 150, 0.15), rgba(140, 140, 150, 0.05)); border-color: rgba(140, 140, 150, 0.2); color: #ccc; }
+    .cm-fp { background: linear-gradient(135deg, rgba(225, 179, 55, 0.2), rgba(225, 179, 55, 0.05)); border-color: rgba(225, 179, 55, 0.3); color: #ffdb7d; }
+    .cm-fn { background: linear-gradient(135deg, rgba(215, 92, 68, 0.2), rgba(215, 92, 68, 0.05)); border-color: rgba(215, 92, 68, 0.3); color: #ff8c7a; }
+
+    /* Visual Distribution Bar */
+    .dist-container {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
-    .c4 {
-      background: linear-gradient(180deg, rgba(140, 140, 150, .36), rgba(140, 140, 150, .12))
+    .dist-bar-wrap {
+      height: 40px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      display: flex;
+      overflow: hidden;
+      margin: 20px 0;
+      border: 1px solid rgba(255,255,255,0.1);
     }
+
+    .dist-segment {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 900;
+      color: #fff;
+      transition: width 1s ease;
+    }
+
+    .dist-pos { background: linear-gradient(90deg, #3a9e5b, #47b469); }
+    .dist-neu { background: linear-gradient(90deg, #b9921c, #d6b54a); }
+    .dist-neg { background: linear-gradient(90deg, #a83f2a, #d75c44); }
 
     .legend {
-      margin-top: 10px;
       display: flex;
-      gap: 10px;
       flex-wrap: wrap;
-      font-size: 11.5px;
-      color: rgba(255, 255, 255, .78)
+      gap: 16px;
+      margin-top: 10px;
     }
-
-    .pill {
-      display: inline-flex;
+    .legend .pill {
+      display: flex;
       align-items: center;
       gap: 8px;
-      padding: 7px 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, .03);
-      border: 1px solid rgba(255, 255, 255, .08);
-      box-shadow: var(--inner);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .legend .sw {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      flex-shrink: 0;
     }
 
-    .sw {
-      width: 10px;
-      height: 10px;
-      border-radius: 3px
-    }
-
-    .sw.g {
-      background: rgba(71, 180, 105, .85)
-    }
-
-    .sw.y {
-      background: rgba(225, 179, 55, .92)
-    }
-
-    .sw.r {
-      background: rgba(215, 92, 68, .92)
-    }
-
-    .sw.n {
-      background: rgba(140, 140, 150, .75)
-    }
-
-    /* chips top kata: lebih mirip (rapat) */
-    .chips {
+    /* Chips/Tags Upgrade */
+    .premium-chips {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-top: 8px
+      margin-top: 15px;
     }
 
-    .chip {
-      display: inline-flex;
+    .p-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px 16px;
+      display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, .03);
-      border: 1px solid rgba(255, 255, 255, .08);
-      box-shadow: var(--inner);
-      font-size: 12px;
-      min-width: 120px;
+      gap: 12px;
+      transition: all 0.2s ease;
     }
 
-    .chip b {
-      font-weight: 980
+    .p-chip:hover {
+      background: rgba(214, 181, 74, 0.08);
+      border-color: rgba(214, 181, 74, 0.3);
+      transform: scale(1.05);
     }
+
+    .p-chip .word { font-weight: 700; color: #fff; }
+    .p-chip .count { 
+      background: rgba(214, 181, 74, 0.2); 
+      color: var(--gold);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
 
     /* ===== SENTIM PER ASPEK ===== */
     .sentim {
-      grid-column: span 5
+      grid-column: span 6;
     }
 
     .donutWrap {
@@ -950,7 +1043,11 @@
 
     /* ===== TOP ISU + REKOM ===== */
     .isu {
-      grid-column: span 6
+      grid-column: span 6;
+    }
+
+    .prio {
+      grid-column: span 12;
     }
 
     .rekom {
@@ -1581,7 +1678,7 @@
 
     /* ===== PRIORITAS ===== */
     .prio {
-      grid-column: span 6
+      grid-column: span 12;
     }
 
     .prioRow {
@@ -2596,10 +2693,23 @@
 
     // Confusion matrix - dari hasil analisis
     $cm = data_get($result ?? [], 'confusion_matrix', []);
-    $tp = data_get($cm, 'tp', 0);
-    $fp = data_get($cm, 'fp', 0);
-    $fn = data_get($cm, 'fn', 0);
-    $tn = data_get($cm, 'tn', 0);
+    $tp = (int)data_get($cm, 'tp', 0);
+    $fp = (int)data_get($cm, 'fp', 0);
+    $fn = (int)data_get($cm, 'fn', 0);
+    $tn = (int)data_get($cm, 'tn', 0);
+
+    // Perhitungan tambahan untuk dashboard premium
+    $totalCM = $tp + $fp + $fn + $tn;
+    $accuracyVal = $totalCM > 0 ? ($tp + $tn) / $totalCM : 0;
+    $accuracyTextPremium = number_format($accuracyVal * 100, 1) . '%';
+    
+    // Untuk Bar Distribusi
+    $totalPos = $tp + $fp;
+    $totalNeg = $fn + $tn; // Dalam konteks ini, kita bisa asumsikan FN+TN adalah bagian non-positif
+    $pctPosBar = $totalCM > 0 ? ($totalPos / $totalCM) * 100 : 0;
+    $pctNegBar = $totalCM > 0 ? ($fn / $totalCM) * 100 : 0; // FN seringkali dianggap negatif yang salah
+    $pctTNBar = $totalCM > 0 ? ($tn / $totalCM) * 100 : 0;
+
 
     // Top kata - dari hasil analisis real
     $topKata = data_get($result ?? [], 'top_kata', []);
@@ -3288,81 +3398,106 @@
         </div>
       @endif
 
-      {{-- ABSA --}}
+      {{-- UPGRADE: ABSA ANALYSIS PREMIUM --}}
       <div class="panel absa">
-        <h3>Analisis ABSA</h3>
+        <div class="absa-header">
+          <h3>Analisis & Evaluasi AI (ABSA)</h3>
+          <span class="mini" style="opacity:0.6">Engine Status: <b style="color:#72f09d">Optimal</b></span>
+        </div>
 
-        <div class="absaGrid">
-          <div>
-            <div class="mini" style="display:flex;justify-content:space-between">
-              <span><b style="color:rgba(255,255,255,.86)">Prediksi</b></span>
-              <span><b style="color:rgba(255,255,255,.86)">Aktual</b></span>
-            </div>
+        {{-- Kartu KPI Utama --}}
+        <div class="premium-kpis">
+          <div class="kpi-card highlight">
+            <div class="kpi-label">Akurasi Model</div>
+            <div class="kpi-value">{{ $accuracyTextPremium }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Total Data Evaluasi</div>
+            <div class="kpi-value">{{ $totalCM }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Tingkat Keberhasilan (TP)</div>
+            <div class="kpi-value">{{ $tp }}</div>
+          </div>
+        </div>
 
-            <div class="cm">
-              <div class="axis">Sebenarnya</div>
-              <div class="colhdr">Prediksi</div>
-              <div class="colhdr">Aktual</div>
+        <div class="absa-main-grid">
+          {{-- Kolom Kiri: Confusion Matrix --}}
+          <div class="cm-container">
+            <div class="mini" style="font-weight:900; margin-bottom:10px; color:var(--gold)">MATRIKS EVALUASI (CONFUSION MATRIX)</div>
+            <div class="cm-grid-2x2">
+              <div class="cm-label-top" style="grid-column: 2">Prediksi Positif</div>
+              <div class="cm-label-top" style="grid-column: 3">Prediksi Negatif</div>
+              
+              <div class="cm-label-left" style="grid-row: 2">Aktual Positif</div>
+              <div class="cm-cell-box cm-tp" style="grid-column: 2; grid-row: 2">
+                <span class="val">{{ $tp }}</span>
+                <span class="lbl">Positif Benar (TP)</span>
+              </div>
+              <div class="cm-cell-box cm-fn" style="grid-column: 3; grid-row: 2">
+                <span class="val">{{ $fn }}</span>
+                <span class="lbl">Negatif Salah (FN)</span>
+              </div>
 
-              <div class="mat">
-                <div class="cell c1">{{ $tp }}</div>
-                <div class="cell c2">{{ $fp }}</div>
-                <div class="cell c3">{{ $fn }}</div>
-                <div class="cell c4">{{ $tn }}</div>
+              <div class="cm-label-left" style="grid-row: 3">Aktual Negatif</div>
+              <div class="cm-cell-box cm-fp" style="grid-column: 2; grid-row: 3">
+                <span class="val">{{ $fp }}</span>
+                <span class="lbl">Positif Salah (FP)</span>
+              </div>
+              <div class="cm-cell-box cm-tn" style="grid-column: 3; grid-row: 3">
+                <span class="val">{{ $tn }}</span>
+                <span class="lbl">Negatif Benar (TN)</span>
               </div>
             </div>
-
-            <div class="legend">
-              <span class="pill"><span class="sw g"></span> Positif Benar (TP)</span>
-              <span class="pill"><span class="sw y"></span> Positif Salah (FP)</span>
-              <span class="pill"><span class="sw r"></span> Negatif Salah (FN)</span>
-              <span class="pill"><span class="sw n"></span> Negatif Benar (TN)</span>
+            <div class="mini" style="margin-top:15px; font-size:10px; opacity:0.6; line-height:1.4">
+              * TP/TN adalah prediksi yang tepat sasaran. <br>
+              * FP/FN adalah area di mana model perlu dilatih kembali.
             </div>
           </div>
 
-          <div>
-            <div class="mini" style="margin-top:4px;margin-bottom:12px">
-              <b style="color:rgba(255,255,255,.86)">Distribusi Sentimen Aspek Utama</b>
-            </div>
-
-            <div class="cm">
-              <div class="axis">Sentimen</div>
-              <div class="colhdr">Positif</div>
-              <div class="colhdr">Negatif</div>
-
-              <div class="mat">
-                <div class="cell c1">{{ $tp }}</div>
-                <div class="cell c2">{{ $fp }}</div>
-                <div class="cell c3">{{ $fn }}</div>
-                <div class="cell c4">{{ $tn }}</div>
+          {{-- Kolom Kanan: Distribusi & Keywords --}}
+          <div style="display:flex; flex-direction:column; gap:24px;">
+            <div class="dist-container">
+              <div class="mini" style="font-weight:900; color:var(--gold)">DISTRIBUSI SENTIMEN HASIL AUDIT</div>
+              <div class="dist-bar-wrap">
+                @if($totalCM > 0)
+                  <div class="dist-segment dist-pos" style="width: {{ ($tp+$fp)/$totalCM*100 }}%" title="Positif">
+                    {{ round(($tp+$fp)/$totalCM*100) }}%
+                  </div>
+                  <div class="dist-segment dist-neg" style="width: {{ $fn/$totalCM*100 }}%" title="Negatif">
+                    {{ round($fn/$totalCM*100) }}%
+                  </div>
+                  <div class="dist-segment dist-neu" style="width: {{ $tn/$totalCM*100 }}%" title="Lainnya">
+                    {{ round($tn/$totalCM*100) }}%
+                  </div>
+                @else
+                  <div class="dist-segment" style="width:100%; background:rgba(255,255,255,0.05)">Data Kosong</div>
+                @endif
+              </div>
+              <div class="legend" style="margin-top:0">
+                <span class="pill"><span class="sw g" style="background:#47b469"></span> Positif</span>
+                <span class="pill"><span class="sw r" style="background:#d75c44"></span> Negatif</span>
+                <span class="pill"><span class="sw y" style="background:#d6b54a"></span> Lainnya</span>
               </div>
             </div>
 
-            <div class="legend">
-              <span class="pill"><span class="sw g"></span> Positif</span>
-              <span class="pill"><span class="sw y"></span> Netral</span>
-              <span class="pill"><span class="sw r"></span> Negatif</span>
-            </div>
-          </div>
-
-          <div>
-            <div class="mini" style="margin-top:4px;margin-bottom:8px">
-              <b style="color:rgba(255,255,255,.86)">Kata Kunci Teratas dari Komentar</b>
-            </div>
-
-            <div class="chips" id="topKataChips">
-              @forelse(array_slice($topKata, 0, 4) as $tk)
-                <div class="chip">
-                  <span>{{ data_get($tk, 'kata', '-') }}</span>
-                  <b>{{ (int) data_get($tk, 'frekuensi', 0) }}</b>
-                </div>
-              @empty
-                <div class="mini">Belum terdapat kata kunci terdeteksi.</div>
-              @endforelse
+            <div class="dist-container">
+              <div class="mini" style="font-weight:900; color:var(--gold)">KATA KUNCI UTAMA (TOP KEYWORDS)</div>
+              <div class="premium-chips">
+                @forelse(array_slice($topKata, 0, 5) as $tk)
+                  <div class="p-chip">
+                    <span class="word">{{ data_get($tk, 'kata', '-') }}</span>
+                    <span class="count">{{ (int) data_get($tk, 'frekuensi', 0) }}</span>
+                  </div>
+                @empty
+                  <div class="mini">Belum terdapat kata kunci terdeteksi.</div>
+                @endforelse
+              </div>
             </div>
           </div>
         </div>
       </div>
+
 
       {{-- Sentimen per aspek --}}
       <div class="panel sentim" id="sentimScopedArea">

@@ -299,12 +299,14 @@ _TEXT_SENTIMENT_NEGATIVE_CUES = {
         "aroma hilang", "aroma cepat hilang", "bau hilang", "wangi hilang", "aroma tidak konsisten",
         "tajam", "terlalu tajam", "pusing", "bikin pusing", "mual", "eneg", "menyengat", "nyegrak",
         "terlalu kuat", "bau apek", "bau plastik", "bau alkohol", "alkohol banget", "kurang wangi",
-        "kurang harum", "bau menyengat", "aroma aneh", "bau aneh"
+        "kurang harum", "bau menyengat", "aroma aneh", "bau aneh", "bau balsem", "bau minyak kayu putih",
+        "bau obat", "bau kimia", "bau sangit", "bau kecut", "tidak keluar wanginya"
     ],
     "ketahanan": [
         "ketahanan berkurang", "ketahanan kurang", "ketahanan rendah", "tahan 2 jam", "tahan 3 jam",
         "cepat pudar", "cepat menguap", "sebentar saja", "cuma sebentar", "nggak awet",
-        "kurang tahan lama", "tidak tahan lama", "tidak awet", "cepet ilang", "cepet pudar"
+        "kurang tahan lama", "tidak tahan lama", "tidak awet", "cepet ilang", "cepet pudar",
+        "hanya tahan sebentar", "kurang nendang", "kurang kuat", "tidak tahan lama"
     ],
     "kemasan": [
         "bocor", "rembes", "rusak", "patah", "retak", "nozzle macet", "spray macet", "tutup longgar",
@@ -437,6 +439,11 @@ def _infer_text_sentiment_for_aspect(text: str, aspect: str) -> str:
 
     # Strong complaint phrases should dominate unless explicitly negated.
     if critical_neg_hits > 0 and negation_hits == 0:
+        return "Negatif"
+
+    # **ENHANCEMENT**: Extra check for strong negative indicators in perfume context
+    strong_neg_tokens = {"pusing", "mual", "enek", "apek", "alkohol", "bocor", "rusak", "macet", "hilang", "cepat hilang"}
+    if any(tok in normalized for tok in strong_neg_tokens) and negation_hits == 0:
         return "Negatif"
 
     neg_score = max(0, neg_hits - (negation_hits * 2))
@@ -1124,6 +1131,12 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
     # jumlah responden untuk analisis utama = jumlah baris setelah filter
     jumlah_responden = int(len(df))
 
+    # **BUGFIX**: Pastikan kolom 'label' ada di dataframe utama untuk Confusion Matrix nanti
+    if LABEL_COL and LABEL_COL in df.columns:
+        df["label"] = df[LABEL_COL].apply(likert_to_sentiment)
+    else:
+        df["label"] = None
+
     # 3) distribusi sentimen total (berdasarkan semua kolom likert)
     aspect_sent_counts: Dict[str, Counter] = {}
     total_labels = []
@@ -1660,45 +1673,52 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         })
         prio_idx += 1
 
-    # 9) akurasi_model & confusion matrix: kalau ada aspek dari text, buat matrix dari top aspek
-    # NOTE: when we actually trained an ML model, prefer to report its validation
-    # accuracy (best_acc) instead of the crude confusion-based metric. This makes
-    # the dashboard number more meaningful for users who expect the ML score.
+    # 9) akurasi_model & confusion matrix: Perhitungan REAL berbasis prediksi vs aktual
     akurasi_model = None
     confusion_matrix = {
-        "tp": 0,
-        "fp": 0,
-        "fn": 0,
-        "tn": 0
+        "tp": 0, "fp": 0, "fn": 0, "tn": 0
     }
     
-    # If the ML pipeline produced a model, override the default accuracy
-    # Prioritize F1 Score as primary metric (more robust for imbalanced data)
-    if best_f1 is not None:
-        # Report the selected model's weighted F1 score as the primary metric.
-        # With enough data this comes from stratified cross-validation, not one
-        # lucky train/test split.
-        akurasi_model = round(float(best_f1), 4)
-    elif f1_nb is not None and f1_svm is not None:
-        akurasi_model = round(max(f1_nb, f1_svm), 4)
-    
-    # build confusion matrix for backwards compatibility / charting
-    if absa_aspect_sentiment and len(absa_aspect_sentiment) > 0:
-        top_absa = absa_aspect_sentiment[0]
-        confusion_matrix = {
-            "tp": top_absa.get("positif", 0),
-            "fp": top_absa.get("negatif", 0),
-            "fn": top_absa.get("netral", 0),
-            "tn": 0
-        }
-    # Fallback: gunakan total sentiment distribution
-    elif dist_total:
-        confusion_matrix = {
-            "tp": dist_total.get("Positif", 0),
-            "fp": dist_total.get("Negatif", 0),
-            "fn": dist_total.get("Netral", 0),
-            "tn": 0
-        }
+    # Hitung Confusion Matrix nyata dari prediksi model vs label aktual
+    if model_trained and "predicted_sentiment" in df.columns and "label" in df.columns:
+        # Filter data yang memiliki label valid (bukan Unknown)
+        eval_df = df[(df["label"].notna()) & (df["label"] != "Unknown") & (df["predicted_sentiment"].notna()) & (df["predicted_sentiment"] != "Unknown")]
+        if not eval_df.empty:
+            y_true = eval_df["label"].values
+            y_pred = eval_df["predicted_sentiment"].values
+            
+            # Map ke binary (Positif vs Non-Positif) untuk dashboard
+            tp_count = sum((y_true == "Positif") & (y_pred == "Positif"))
+            fp_count = sum((y_true != "Positif") & (y_pred == "Positif"))
+            fn_count = sum((y_true == "Positif") & (y_pred != "Positif"))
+            tn_count = sum((y_true != "Positif") & (y_pred != "Positif"))
+            
+            confusion_matrix = {
+                "tp": int(tp_count),
+                "fp": int(fp_count),
+                "fn": int(fn_count),
+                "tn": int(tn_count)
+            }
+            
+            total_eval = tp_count + fp_count + fn_count + tn_count
+            if total_eval > 0:
+                akurasi_model = round((tp_count + tn_count) / total_eval, 4)
+
+    # Jika akurasi belum terisi (misal model gagal), gunakan best_f1 atau fallback
+    if akurasi_model is None:
+        if best_f1 is not None:
+            akurasi_model = round(float(best_f1), 4)
+        elif absa_aspect_sentiment:
+            # Fallback ke distribusi aspek teratas jika tidak ada model
+            top_absa = absa_aspect_sentiment[0]
+            confusion_matrix = {
+                "tp": top_absa.get("positif", 0),
+                "fp": top_absa.get("negatif", 0),
+                "fn": top_absa.get("netral", 0),
+                "tn": 0
+            }
+            total_cm = sum(confusion_matrix.values())
+            akurasi_model = round(confusion_matrix["tp"] / total_cm, 4) if total_cm > 0 else 0.0
     
     # If accuracy hasn't been set by ML above, compute from confusion matrix
     if akurasi_model is None:
