@@ -2703,7 +2703,19 @@
     $akurasiModel = data_get($kpi, 'akurasi_model');
     $persenNegatif = data_get($kpi, 'persen_negatif');
 
-    $akurasiText = is_numeric($akurasiModel) ? number_format($akurasiModel * 100, 1) . '%' : '—';
+    $modelTrained = (bool) data_get($kpi, 'model_trained', false);
+    if ($modelTrained) {
+        $modelUsed = strtolower(trim((string) data_get($kpi, 'model_used', '')));
+        if (strpos($modelUsed, 'naive') !== false) {
+            $bestMetric = data_get($kpi, 'f1_nb');
+        } else {
+            $bestMetric = data_get($kpi, 'f1_svm');
+        }
+        $akurasiText = is_numeric($bestMetric) ? number_format($bestMetric * 100, 1) . '%' : '—';
+    } else {
+        $akurasiText = is_numeric($akurasiModel) ? number_format($akurasiModel * 100, 1) . '%' : '—';
+    }
+    
     $negatifText = is_numeric($persenNegatif) ? number_format($persenNegatif * 100, 1) . '%' : '—';
 
     // Confusion matrix - dari hasil analisis
@@ -3145,7 +3157,7 @@
           @endif
           <div class="label">
             @if(data_get($kpi, 'model_trained'))
-              F1 Score <small style="font-weight:normal;">(ML)</small>
+              F1-Score <small style="font-weight:normal;">(Cross-Val)</small>
             @else
               Akurasi <small style="font-weight:normal;">(rule)</small>
             @endif
@@ -3414,16 +3426,16 @@
       @endif
 
       {{-- UPGRADE: ABSA ANALYSIS PREMIUM --}}
-      <div class="panel absa">
+      <div class="panel absa" id="absaScopedArea">
         <div class="absa-header">
-          <h3>Analisis & Evaluasi AI (ABSA)</h3>
+          <h3>Evaluasi Model & Analisis Sentimen Berbasis Aspek (ABSA)</h3>
           <span class="mini" style="opacity:0.6">Engine Status: <b style="color:#72f09d">Optimal</b></span>
         </div>
 
         {{-- Kartu KPI Utama --}}
         <div class="premium-kpis">
           <div class="kpi-card highlight">
-            <div class="kpi-label">Akurasi Model</div>
+            <div class="kpi-label">Akurasi Akhir (Full Fit)</div>
             <div class="kpi-value">{{ $accuracyTextPremium }}</div>
           </div>
           <div class="kpi-card">
@@ -3498,7 +3510,7 @@
 
             <div class="dist-container">
               <div class="mini" style="font-weight:900; color:var(--gold)">KATA KUNCI UTAMA (TOP KEYWORDS)</div>
-              <div class="premium-chips">
+              <div class="premium-chips" id="topKataChips">
                 @forelse(array_slice($topKata, 0, 5) as $tk)
                   <div class="p-chip">
                     <span class="word">{{ data_get($tk, 'kata', '-') }}</span>
@@ -3509,6 +3521,16 @@
                 @endforelse
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel gold kpi kpiSimple" id="absaScopedHint" style="display:none; grid-column:span 12">
+        <div class="ico kpiIconInner">ℹ️</div>
+        <div class="kpiMain">
+          <div class="label kpiLabel">Evaluasi AI (ABSA)</div>
+          <div class="value" style="font-size:16px; font-weight:normal; line-height:1.4; color:rgba(255,255,255,0.7)">
+            Matriks evaluasi model AI hanya tersedia untuk segmen <b>Sudah Menggunakan</b> karena responden pada segmen <b>Belum Menggunakan</b> tidak memiliki ulasan/evaluasi produk langsung.
           </div>
         </div>
       </div>
@@ -4005,6 +4027,8 @@
       const isuScopedHint = document.getElementById('isuScopedHint');
       const prioScopedArea = document.getElementById('prioScopedArea');
       const prioScopedHint = document.getElementById('prioScopedHint');
+      const absaScopedArea = document.getElementById('absaScopedArea');
+      const absaScopedHint = document.getElementById('absaScopedHint');
       const nonUserOnlySection = document.getElementById('nonUserOnlySection');
       const segmentRekomList = document.getElementById('segmentRekomList');
       const exportManagerPdfBtn = document.getElementById('exportManagerPdfBtn');
@@ -4823,10 +4847,10 @@
           topKataChips.innerHTML = '<div class="mini">Belum terdapat kata kunci terdeteksi.</div>';
           return;
         }
-        topKataChips.innerHTML = items.slice(0, 4).map(row => `
-                              <div class="chip">
-                                <span>${safeHtml(row.kata)}</span>
-                                <b>${Number(row.frekuensi || 0)}</b>
+        topKataChips.innerHTML = items.slice(0, 5).map(row => `
+                              <div class="p-chip">
+                                <span class="word">${safeHtml(row.kata)}</span>
+                                <span class="count">${Number(row.frekuensi || 0)}</span>
                               </div>
                             `).join('');
       }
@@ -5138,6 +5162,8 @@
         if (drillScopedHint) drillScopedHint.style.display = scopedEnabled ? 'none' : '';
         if (prioScopedArea) prioScopedArea.style.display = scopedEnabled ? '' : 'none';
         if (prioScopedHint) prioScopedHint.style.display = scopedEnabled ? 'none' : '';
+        if (absaScopedArea) absaScopedArea.style.display = scopedEnabled ? '' : 'none';
+        if (absaScopedHint) absaScopedHint.style.display = scopedEnabled ? 'none' : '';
         if (nonUserOnlySection) nonUserOnlySection.style.display = segmentKey === 'non_user' ? '' : 'none';
 
         const marketInsightsContainer = document.getElementById('marketInsightsContainer');
