@@ -3146,7 +3146,90 @@
         <div class="spark"></div>
       </div>
 
+      <div class="panel gold kpi kpiDetail">
+        <div class="ico">✅</div>
+        <div class="kpiMain">
+          @if(!empty($operationalReadiness))
+            <div class="kpiReadiness">
+              <span class="intentBadge {{ $opBadgeClass }}">{{ $opLevelLabel }}</span>
+              <span class="kpiReadinessMeta">Kesiapan {{ $opScore }}/100</span>
+            </div>
+          @endif
+          <div class="label">
+            @if(data_get($kpi, 'model_trained'))
+              F1-Score <small style="font-weight:normal;">(Cross-Val)</small>
+            @else
+              Akurasi <small style="font-weight:normal;">(rule)</small>
+            @endif
+          </div>
+          <div class="value">{{ $akurasiText }}</div>
 
+          @if(data_get($kpi, 'model_trained'))
+            <div class="mini mlStats">
+              <div class="modelLine"><strong>Model:</strong> {{ data_get($kpi, 'model_used', '-') }}</div>
+              <div class="modelLine"><strong>Evaluasi:</strong>
+                {{ data_get($kpi, 'evaluation_source_label', '-') }}
+                @if((int) data_get($kpi, 'modeling_rows', 0) > 0)
+                  &bull; Data latih: {{ (int) data_get($kpi, 'modeling_rows', 0) }}
+                @endif
+              </div>
+
+              <div class="metricRow">
+                <span class="metricName">F1 Score (weighted)</span>
+                <span class="metricPair"><strong>NB:</strong>
+                  {{ is_numeric(data_get($kpi, 'f1_nb')) ? number_format(data_get($kpi, 'f1_nb') * 100, 1) . '%' : '—' }}</span>
+                <span class="sep">|</span>
+                <span class="metricPair"><strong>SVM:</strong>
+                  {{ is_numeric(data_get($kpi, 'f1_svm')) ? number_format(data_get($kpi, 'f1_svm') * 100, 1) . '%' : '—' }}</span>
+              </div>
+
+              <div class="metricRow">
+                <span class="metricName">Accuracy</span>
+                <span class="metricPair"><strong>NB:</strong>
+                  {{ is_numeric(data_get($kpi, 'accuracy_nb')) ? number_format(data_get($kpi, 'accuracy_nb') * 100, 1) . '%' : '—' }}</span>
+                <span class="sep">|</span>
+                <span class="metricPair"><strong>SVM:</strong>
+                  {{ is_numeric(data_get($kpi, 'accuracy_svm')) ? number_format(data_get($kpi, 'accuracy_svm') * 100, 1) . '%' : '—' }}</span>
+              </div>
+
+              <div class="metricRow">
+                <span class="metricName">Precision</span>
+                <span class="metricPair"><strong>NB:</strong>
+                  {{ is_numeric(data_get($kpi, 'precision_nb')) ? number_format(data_get($kpi, 'precision_nb') * 100, 1) . '%' : '—' }}</span>
+                <span class="sep">|</span>
+                <span class="metricPair"><strong>SVM:</strong>
+                  {{ is_numeric(data_get($kpi, 'precision_svm')) ? number_format(data_get($kpi, 'precision_svm') * 100, 1) . '%' : '—' }}</span>
+              </div>
+
+              <div class="metricRow">
+                <span class="metricName">Recall</span>
+                <span class="metricPair"><strong>NB:</strong>
+                  {{ is_numeric(data_get($kpi, 'recall_nb')) ? number_format(data_get($kpi, 'recall_nb') * 100, 1) . '%' : '—' }}</span>
+                <span class="sep">|</span>
+                <span class="metricPair"><strong>SVM:</strong>
+                  {{ is_numeric(data_get($kpi, 'recall_svm')) ? number_format(data_get($kpi, 'recall_svm') * 100, 1) . '%' : '—' }}</span>
+              </div>
+            </div>
+          @else
+            <div class="mini mlStats">
+              <div class="metricRow">
+                <span class="metricName">Test Accuracy</span>
+                <span class="metricPair"><strong>NB:</strong>
+                  {{ is_numeric(data_get($kpi, 'accuracy_nb')) ? number_format(data_get($kpi, 'accuracy_nb') * 100, 1) . '%' : '—' }}</span>
+                <span class="sep">|</span>
+                <span class="metricPair"><strong>SVM:</strong>
+                  {{ is_numeric(data_get($kpi, 'accuracy_svm')) ? number_format(data_get($kpi, 'accuracy_svm') * 100, 1) . '%' : '—' }}</span>
+              </div>
+            </div>
+          @endif
+
+          @php $reason = data_get($kpi, 'training_reason'); @endphp
+          @if($reason)
+            <div class="kpiMeta">({{ $reason }})</div>
+          @endif
+        </div>
+        <div class="spark"></div>
+      </div>
 
 
 
@@ -3350,47 +3433,18 @@
         </div>
 
         {{-- Kartu KPI Utama --}}
-        <div class="premium-kpis" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        <div class="premium-kpis">
           <div class="kpi-card highlight">
-            <div class="kpi-label">
-              @if(data_get($kpi, 'model_trained'))
-                F1-Score (Cross-Val)
-              @else
-                Akurasi (rule)
-              @endif
-            </div>
-            <div class="kpi-value">{{ $akurasiText }}</div>
-            <div class="mini" style="margin-top: 6px; font-size: 11px; opacity: 0.8; line-height: 1.35;">
-              Mengukur ketangguhan dan stabilitas model pada data baru (*generalization*).
-            </div>
-            @if(data_get($kpi, 'model_trained'))
-              <div style="margin-top: 8px;">
-                <span class="intentBadge high" style="font-size: 10px; padding: 2px 8px; border-radius: 6px; text-transform: none; font-weight: bold; background: rgba(214, 181, 74, 0.2); border-color: rgba(214, 181, 74, 0.4); color: var(--gold);">
-                  🏆 Model Terbaik: {{ data_get($kpi, 'model_used', '-') }}
-                </span>
-              </div>
-            @endif
-          </div>
-          <div class="kpi-card highlight" style="border-color: rgba(214, 181, 74, 0.3);">
             <div class="kpi-label">Akurasi Akhir (Full Fit)</div>
             <div class="kpi-value">{{ $accuracyTextPremium }}</div>
-            <div class="mini" style="margin-top: 6px; font-size: 11px; opacity: 0.8; line-height: 1.35;">
-              Tingkat kecocokan prediksi model pada seluruh data evaluasi saat ini.
-            </div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Total Data Evaluasi</div>
             <div class="kpi-value">{{ $totalCM }}</div>
-            <div class="mini" style="margin-top: 6px; font-size: 11px; opacity: 0.7; line-height: 1.35;">
-              Jumlah total ulasan/komentar yang dianalisis oleh model saat ini.
-            </div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Tingkat Keberhasilan (TP)</div>
             <div class="kpi-value">{{ $tp }}</div>
-            <div class="mini" style="margin-top: 6px; font-size: 11px; opacity: 0.7; line-height: 1.35;">
-              Jumlah ulasan positif yang berhasil terprediksi dengan benar.
-            </div>
           </div>
         </div>
 
@@ -3469,81 +3523,6 @@
             </div>
           </div>
         </div>
-
-        {{-- Full-width: Detail Model & Evaluasi Algoritma --}}
-        <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 24px; padding-top: 20px;">
-          <div class="mini" style="font-weight:900; margin-bottom:12px; color:var(--gold)">DETAIL MODEL & EVALUASI ALGORITMA</div>
-          <div class="mini mlStats" style="margin-top: 0px; display: block;">
-            @if(data_get($kpi, 'model_trained'))
-              <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline; margin-bottom: 12px;">
-                <div class="modelLine"><strong>Model Terpilih:</strong> {{ data_get($kpi, 'model_used', '-') }}</div>
-                <div class="modelLine"><strong>Metode Evaluasi:</strong>
-                  {{ data_get($kpi, 'evaluation_source_label', '-') }}
-                  @if((int) data_get($kpi, 'modeling_rows', 0) > 0)
-                    &bull; Data latih: {{ (int) data_get($kpi, 'modeling_rows', 0) }}
-                  @endif
-                </div>
-              </div>
-              <div class="tableScrollX" style="border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; background: rgba(0,0,0,0.15); padding: 8px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
-                  <thead>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                      <th style="padding: 8px 10px; font-size: 11px; text-align: left; background: transparent; color: var(--gold);">Metrik (Weighted)</th>
-                      <th style="padding: 8px 10px; font-size: 11px; text-align: right; background: transparent; color: #fff;">Naive Bayes</th>
-                      <th style="padding: 8px 10px; font-size: 11px; text-align: right; background: transparent; color: #fff;">SVM</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                      <td style="padding: 8px 10px; color: rgba(255,255,255,0.85);">F1 Score</td>
-                      <td style="padding: 8px 10px; text-align: right; color: #fff; font-weight: bold;">{{ is_numeric(data_get($kpi, 'f1_nb')) ? number_format(data_get($kpi, 'f1_nb') * 100, 1) . '%' : '—' }}</td>
-                      <td style="padding: 8px 10px; text-align: right; color: #fff; font-weight: bold;">{{ is_numeric(data_get($kpi, 'f1_svm')) ? number_format(data_get($kpi, 'f1_svm') * 100, 1) . '%' : '—' }}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                      <td style="padding: 8px 10px; color: rgba(255,255,255,0.85);">Accuracy</td>
-                      <td style="padding: 8px 10px; text-align: right; color: rgba(255,255,255,0.95);">{{ is_numeric(data_get($kpi, 'accuracy_nb')) ? number_format(data_get($kpi, 'accuracy_nb') * 100, 1) . '%' : '—' }}</td>
-                      <td style="padding: 8px 10px; text-align: right; color: rgba(255,255,255,0.95);">{{ is_numeric(data_get($kpi, 'accuracy_svm')) ? number_format(data_get($kpi, 'accuracy_svm') * 100, 1) . '%' : '—' }}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                      <td style="padding: 8px 10px; color: rgba(255,255,255,0.85);">Precision</td>
-                      <td style="padding: 8px 10px; text-align: right; color: rgba(255,255,255,0.95);">{{ is_numeric(data_get($kpi, 'precision_nb')) ? number_format(data_get($kpi, 'precision_nb') * 100, 1) . '%' : '—' }}</td>
-                      <td style="padding: 8px 10px; text-align: right; color: rgba(255,255,255,0.95);">{{ is_numeric(data_get($kpi, 'precision_svm')) ? number_format(data_get($kpi, 'precision_svm') * 100, 1) . '%' : '—' }}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 10px; color: rgba(255,255,255,0.85);">Recall</td>
-                      <td style="padding: 8px 10px; text-align: right; color: rgba(255,255,255,0.95);">{{ is_numeric(data_get($kpi, 'recall_nb')) ? number_format(data_get($kpi, 'recall_nb') * 100, 1) . '%' : '—' }}</td>
-                      <td style="padding: 8px 10px; text-align: right; color: rgba(255,255,255,0.95);">{{ is_numeric(data_get($kpi, 'recall_svm')) ? number_format(data_get($kpi, 'recall_svm') * 100, 1) . '%' : '—' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            @else
-              <div class="tableScrollX" style="border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; background: rgba(0,0,0,0.15); padding: 8px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
-                  <thead>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                      <th style="padding: 8px 10px; font-size: 11px; text-align: left; background: transparent; color: var(--gold);">Metrik</th>
-                      <th style="padding: 8px 10px; font-size: 11px; text-align: right; background: transparent; color: #fff;">Naive Bayes</th>
-                      <th style="padding: 8px 10px; font-size: 11px; text-align: right; background: transparent; color: #fff;">SVM</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style="padding: 8px 10px; color: rgba(255,255,255,0.85);">Test Accuracy</td>
-                      <td style="padding: 8px 10px; text-align: right; color: #fff; font-weight: bold;">{{ is_numeric(data_get($kpi, 'accuracy_nb')) ? number_format(data_get($kpi, 'accuracy_nb') * 100, 1) . '%' : '—' }}</td>
-                      <td style="padding: 8px 10px; text-align: right; color: #fff; font-weight: bold;">{{ is_numeric(data_get($kpi, 'accuracy_svm')) ? number_format(data_get($kpi, 'accuracy_svm') * 100, 1) . '%' : '—' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            @endif
-            @php $reason = data_get($kpi, 'training_reason'); @endphp
-            @if($reason)
-              <div class="kpiMeta" style="margin-top: 8px; color: rgba(255, 255, 255, 0.52); font-size: 11px;">* {{ $reason }}</div>
-            @endif
-          </div>
-        </div>
-
       </div>
 
       <div class="panel gold kpi kpiSimple" id="absaScopedHint" style="display:none; grid-column:span 12">
