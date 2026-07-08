@@ -3559,7 +3559,7 @@
 
       {{-- Sentimen per aspek --}}
       <div class="panel sentim" id="sentimScopedArea">
-        <h3>Sentimen per Aspek</h3>
+        <h3>Proporsi Keluhan per Aspek</h3>
         <div class="mini segContext" id="panelCtxSentim" style="margin-top:-6px;margin-bottom:10px">Berdasarkan segmen
           aktif.</div>
 
@@ -3575,12 +3575,12 @@
                 $total = (int) data_get($s, 'total', 0);
                 // fallback ke positif jika negatif nol
                 if ($persenNeg <= 0 && $total > 0) {
-                  $persenNeg = (data_get($s, 'positif', 0) / $total);
+                  $persenNeg = (data_get($s, 'positif', 0) / $total) * 100;
                 }
               @endphp
               <div class="brow">
                 <div class="k">{{ data_get($s, 'aspek', '-') }}</div>
-                <div class="v">{{ round($persenNeg * 100, 1) }}%</div>
+                <div class="v">{{ round($persenNeg, 1) }}%</div>
               </div>
             @endforeach
           </div>

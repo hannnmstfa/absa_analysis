@@ -1529,8 +1529,10 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
     sentimen_per_aspek = []
     desired_display_aspects = ["aroma", "kemasan", "ketahanan"]
 
+    # Kumpulkan data untuk ketiga aspek utama
+    collected_aspects = []
     if absa_aspect_sentiment:
-        sentimen_per_aspek = [
+        collected_aspects = [
             x for x in absa_aspect_sentiment
             if str(x.get("aspek", "")).strip().lower() in desired_display_aspects
         ]
@@ -1541,34 +1543,56 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
             neg = counts.get("Negatif", 0)
             total_aspek = pos + nt + neg
             if total_aspek > 0:
-                pct_neg = round((neg / total_aspek) * 100, 1)
-                sentimen_per_aspek.append({
+                collected_aspects.append({
                     "aspek": aspek,
                     "positif": int(pos),
                     "netral": int(nt),
                     "negatif": int(neg),
-                    "total": int(total_aspek),
-                    "persen_negatif": float(pct_neg)
+                    "total": int(total_aspek)
                 })
-        sentimen_per_aspek.sort(key=lambda x: x["negatif"], reverse=True)
+        collected_aspects.sort(key=lambda x: x["negatif"], reverse=True)
 
-    # Ensure the dashboard always shows aroma/kemasan/ketahanan.
-    # If ABSA text misses one aspect, fallback to aspect-specific likert aggregation.
-    existing_aspek_keys = {a['aspek'].lower(): a for a in sentimen_per_aspek}
+    # Pastikan aroma, kemasan, dan ketahanan selalu ada di list
+    existing_aspek_keys = {a['aspek'].lower(): a for a in collected_aspects}
     for da in desired_display_aspects:
         if da not in existing_aspek_keys:
             fallback_metric = _summarize_aspect_from_likert(df, da)
             if fallback_metric:
-                sentimen_per_aspek.append(fallback_metric)
+                collected_aspects.append(fallback_metric)
             else:
-                sentimen_per_aspek.append({
+                collected_aspects.append({
                     "aspek": da.capitalize(),
                     "positif": 0,
                     "netral": 0,
                     "negatif": 0,
-                    "total": 0,
-                    "persen_negatif": 0.0
+                    "total": 0
                 })
+
+    # Ambil persis ketiga aspek utama saja untuk widget proporsi keluhan
+    sentimen_per_aspek = [
+        x for x in collected_aspects
+        if str(x.get("aspek", "")).strip().lower() in desired_display_aspects
+    ]
+
+    # Hitung total negatif display lintas ketiga aspek utama
+    total_negatif_display = sum(int(x.get("negatif", 0)) for x in sentimen_per_aspek)
+
+    # Terapkan Largest Remainder Method agar jumlahnya persis 100.0%
+    if total_negatif_display > 0:
+        raw_pcts = [(int(x.get("negatif", 0)) / total_negatif_display) * 1000 for x in sentimen_per_aspek]
+        floored = [math.floor(p) for p in raw_pcts]
+        remainders = [p - f for p, f in zip(raw_pcts, floored)]
+        diff = 1000 - sum(floored)
+        indexed_remainders = sorted(enumerate(remainders), key=lambda x: x[1], reverse=True)
+        for i in range(diff):
+            idx = indexed_remainders[i][0]
+            floored[idx] += 1
+        
+        for x, f in zip(sentimen_per_aspek, floored):
+            x["persen_negatif"] = float(f / 10)
+    else:
+        for x in sentimen_per_aspek:
+            x["persen_negatif"] = 0.0
 
     # Normalize aspek names to capitalized form for frontend
     for s in sentimen_per_aspek:
@@ -1578,17 +1602,21 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
     def _sort_key(item):
         name = item.get('aspek', '').lower()
         if name in desired_display_aspects:
-            # give a tuple that forces desired aspects to the front
             return (0, -item.get('negatif', 0))
         return (1, -item.get('negatif', 0))
     sentimen_per_aspek.sort(key=_sort_key)
 
     # 7) top isu: gunakan token negatif teratas per aspek (jika tersedia)
+    # Hanya tampilkan 3 aspek utama penelitian: aroma, kemasan, ketahanan
+    _desired_isu_aspects = {"aroma", "kemasan", "ketahanan"}
     top_isu = []
     if aspect_tokens:
         # hitung frekuensi masing-masing token untuk setiap aspek
         from collections import Counter as _Counter
         for aspek, toks in aspect_tokens.items():
+            # Filter: hanya aspek utama
+            if str(aspek).strip().lower() not in _desired_isu_aspects:
+                continue
             freq = _Counter(toks).most_common(1)
             if freq:
                 kata, jumlah = freq[0]
@@ -1606,7 +1634,9 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
             top_isu = top_isu[:3]
     elif absa_aspect_sentiment:
         # fallback ke versi lama bila tidak ada token per aspek
-        for a in absa_aspect_sentiment[:3]:
+        for a in absa_aspect_sentiment:
+            if str(a.get("aspek", "")).strip().lower() not in _desired_isu_aspects:
+                continue
             top_word = top_kata[0]["kata"] if top_kata else "-"
             top_freq = top_kata[0]["frekuensi"] if top_kata else 0
             top_isu.append({
@@ -1614,6 +1644,8 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 "isu": top_word,
                 "frekuensi": int(top_freq)
             })
+            if len(top_isu) >= 3:
+                break
     elif likert_cols:
         for i, c in enumerate(likert_cols[:3]):
             top_word = top_kata[i]["kata"] if i < len(top_kata) else "-"
@@ -2926,37 +2958,63 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
 
         persen_neg = (dist.get("Negatif", 0) / total_labeled) if total_labeled else 0.0
 
-        sentimen_aspek = []
+        # Kumpulkan data aspek
+        collected_aspects = []
         for asp, counts in local_aspect_counts.items():
             pos = int(counts.get("Positif", 0))
             net = int(counts.get("Netral", 0))
             neg = int(counts.get("Negatif", 0))
             tot = pos + net + neg
             if tot > 0:
-                sentimen_aspek.append({
+                collected_aspects.append({
                     "aspek": asp.capitalize(),
                     "positif": pos,
                     "netral": net,
                     "negatif": neg,
                     "total": tot,
-                    "persen_negatif": float(round((neg / tot) * 100, 1)),
                 })
 
-        existing = {x["aspek"].lower() for x in sentimen_aspek}
+        existing = {x["aspek"].lower() for x in collected_aspects}
         for asp in desired:
             if asp not in existing:
                 fallback_metric = _segment_aspect_metric_from_likert(asp)
                 if fallback_metric:
-                    sentimen_aspek.append(fallback_metric)
+                    collected_aspects.append(fallback_metric)
                 else:
-                    sentimen_aspek.append({
+                    collected_aspects.append({
                         "aspek": asp.capitalize(),
                         "positif": 0,
                         "netral": 0,
                         "negatif": 0,
                         "total": 0,
-                        "persen_negatif": 0.0,
                     })
+
+        # Ambil persis ketiga aspek utama saja untuk widget proporsi keluhan
+        sentimen_aspek = [
+            x for x in collected_aspects
+            if str(x.get("aspek", "")).strip().lower() in desired
+        ]
+
+        # Hitung total negatif display lintas ketiga aspek utama
+        total_negatif_display = sum(int(x.get("negatif", 0)) for x in sentimen_aspek)
+
+        # Terapkan Largest Remainder Method agar jumlahnya persis 100.0%
+        if total_negatif_display > 0:
+            raw_pcts = [(int(x.get("negatif", 0)) / total_negatif_display) * 1000 for x in sentimen_aspek]
+            floored = [math.floor(p) for p in raw_pcts]
+            remainders = [p - f for p, f in zip(raw_pcts, floored)]
+            diff = 1000 - sum(floored)
+            indexed_remainders = sorted(enumerate(remainders), key=lambda x: x[1], reverse=True)
+            for i in range(diff):
+                idx = indexed_remainders[i][0]
+                floored[idx] += 1
+            
+            for x, f in zip(sentimen_aspek, floored):
+                x["persen_negatif"] = float(f / 10)
+        else:
+            for x in sentimen_aspek:
+                x["persen_negatif"] = 0.0
+
         sentimen_aspek.sort(key=lambda x: ((x["aspek"].lower() not in desired), -x["negatif"]))
 
         prioritas_local = []
@@ -2973,6 +3031,10 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
 
         top_isu_local = []
         for asp, toks in local_aspect_tokens.items():
+            # Filter: hanya tampilkan 3 aspek utama penelitian
+            if str(asp).strip().lower() not in desired:
+                continue
+
             issue_terms = _extract_issue_terms_for_aspect(asp, toks, limit=3)
             
             # Cari isu terbaik
@@ -2997,6 +3059,7 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                     "negatif": int(local_aspect_counts.get(asp, Counter()).get("Negatif", 0)),
                 })
         top_isu_local.sort(key=lambda x: x.get("negatif", 0), reverse=True)
+
 
         def _build_segment_reco_for_aspect(asp: str) -> Dict[str, object]:
             toks = local_aspect_tokens.get(asp, [])
