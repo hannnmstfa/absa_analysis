@@ -602,21 +602,9 @@ def load_csv_text(csv_url: str) -> str:
     r.raise_for_status()
     return r.text
 
-_ANALYSIS_CACHE = {}
-CACHE_TTL = 300
-
 def run_analysis_from_csv_url(csv_url: str) -> dict:
-    import time
-    cache_key = build_csv_export_url(csv_url)
-    current_time = time.time()
-    if cache_key in _ANALYSIS_CACHE:
-        cached_result, timestamp = _ANALYSIS_CACHE[cache_key]
-        if current_time - timestamp < CACHE_TTL:
-            return cached_result
-    
-    result = _internal_run_analysis_from_csv_url(csv_url)
-    _ANALYSIS_CACHE[cache_key] = (result, current_time)
-    return result
+    # Always read the latest Google Sheets CSV so dashboard counts match the sheet.
+    return _internal_run_analysis_from_csv_url(csv_url)
 
 def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
     csv_url = build_csv_export_url(csv_url)
@@ -3234,7 +3222,8 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
             "belum_pakai": total if segment_key == "non_user" else (0 if segment_key == "used" else int(total_belum)),
             "sentimen": dist,
             "persen_negatif": float(round(persen_neg, 4)),
-            "jumlah_komentar": int(total_labeled),
+            "jumlah_komentar": int(total),
+            "jumlah_berlabel": int(total_labeled),
             "sentimen_per_aspek": sentimen_aspek,
             "prioritas": prioritas_local,
             "top_isu": top_isu_local,
