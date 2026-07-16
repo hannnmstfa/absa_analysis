@@ -5,7 +5,7 @@ import requests
 from engine import _download_csv_text, build_csv_export_url, guess_text_column, is_likert_series
 
 # First, let's see what columns are being detected
-url = 'https://docs.google.com/spreadsheets/d/1kZhMZ1PezsznYVfe3eLoH1UZKRdnOJKHzMDfR78sE_w/export?format=csv&gid=729413622'
+url = 'https://docs.google.com/spreadsheets/d/1NgepCH6sZSL-oZtn-4mPIeTF_A21GDVWZ3yWdg5GnZM/export?format=csv&gid=1766541528'
 url = build_csv_export_url(url)
 csv_text = _download_csv_text(url, timeout_sec=25)
 df = pd.read_csv(StringIO(csv_text), on_bad_lines="skip")

@@ -291,9 +291,9 @@ _TEXT_SENTIMENT_NEGATIVE_CUES = {
         "tidak tercium", "hampir tidak tercium", "mulai hilang", "cepat hilang", "tidak konsisten",
         "berkurang", "kurang kuat", "kurang tahan", "tidak tahan", "cuma tahan", "hanya tahan",
         "lemah", "pudar", "menurun", "kurang awet", "semprot ulang", "disemprot ulang", "spray ulang",
-        "masalah", "kendala", "keluhan", "kecewa", "sayang sekali", "kurang", "tidak",
+        "masalah", "kendala", "keluhan", "kecewa", "sayang sekali",
         "belum konsisten", "kurang konsisten", "tidak stabil", "belum stabil",
-        "mahal", "kemahalan", "overprice", "jauh", "sulit dicari", "susah dicari", "tidak ada",
+        "mahal", "kemahalan", "overprice", "jauh", "sulit dicari", "susah dicari",
         "kosong", "habis", "ragu", "takut", "ragu-ragu", "bingung", "kurang yakin",
         "tidak awet", "nggak awet", "kurang harum", "kurang wangi", "tidak wangi", "kurang enak",
         "tidak enak", "kurang suka", "tidak suka", "kecewa", "buruk", "jelek"
@@ -329,8 +329,7 @@ _TEXT_SENTIMENT_NEGATIVE_CRITICAL_CUES = {
         "tidak tercium", "hampir tidak tercium", "mulai hilang", "cepat hilang", "tidak konsisten",
         "berkurang", "kurang kuat", "kurang tahan", "tidak tahan", "cuma tahan", "hanya tahan", "pudar",
         "semprot ulang", "disemprot ulang", "spray ulang", "perlu semprot ulang", "perlu disemprot ulang",
-        "bocor", "rusak", "parah", "jelek", "buruk", "belum konsisten", "kurang konsisten", "longgar",
-        "rembes", "hilang", "macet", "pecah", "palsu", "nipu"
+        "parah", "jelek", "buruk", "belum konsisten", "kurang konsisten", "palsu", "nipu"
     ],
     "aroma": ["aroma hilang", "aroma tidak konsisten", "wangi hilang", "bau hilang", "pusing", "mual", "alkohol banget"],
     "ketahanan": ["ketahanan berkurang", "ketahanan kurang", "ketahanan rendah", "tahan 2 jam", "tahan 3 jam", "cepat hilang", "mudah hilang", "cepet ilang"],
@@ -342,7 +341,10 @@ _TEXT_SENTIMENT_NEGATION_GUARDS = [
     "tidak perlu disemprot ulang", "tidak perlu semprot ulang", "tidak bocor", "tidak macet",
     "tidak longgar", "nggak longgar", "ga longgar", "tidak rembes", "tidak rusak", "aman",
     "tidak tajam", "tidak menyengat", "tidak pusing", "tidak ada masalah", "tidak pernah mengalami masalah",
-    "tidak mengalami masalah", "tidak ada keluhan", "tidak ada kendala", "baik baik saja", "aman aman saja"
+    "tidak mengalami masalah", "tidak ada keluhan", "tidak ada kendala", "tidak berlebihan",
+    "tidak terlalu manis", "tidak terlalu kuat", "tidak terlalu tajam", "tidak bikin pusing",
+    "tidak membuat pusing", "tidak eneg", "tidak enek", "tidak bikin eneg", "tidak bikin enek",
+    "tidak membuat eneg", "tidak membuat enek", "baik baik saja", "aman aman saja"
 ]
 
 _TEXT_SENTIMENT_POSITIVE_CUES = {
@@ -350,13 +352,37 @@ _TEXT_SENTIMENT_POSITIVE_CUES = {
         "tahan lama", "awet", "bagus", "nyaman", "suka", "mantap", "harum", "wangi",
         "konsisten", "stabil", "jos", "mantul", "rekomended", "puas", "senang",
         "aman", "lancar", "kokoh", "rapi", "mewah", "premium", "eksklusif", "elegan",
-        "penasaran", "ingin coba", "mau beli", "bakal beli", "pasti beli", "checkout",
-        "tertarik", "menarik", "keren", "idaman", "impian"
+        "pas", "cocok", "cukup cocok", "tidak berlebihan", "tidak terlalu manis",
+        "tidak terlalu kuat", "penasaran", "ingin coba", "mau beli", "bakal beli",
+        "pasti beli", "checkout", "tertarik", "menarik", "keren", "idaman", "impian"
     ],
-    "aroma": ["aroma enak", "aroma lembut", "wangi lembut", "aroma konsisten", "wangi enak", "harum sekali", "segar", "fresh"],
+    "aroma": ["aroma enak", "aroma lembut", "wangi lembut", "aroma konsisten", "wangi enak", "harum sekali", "segar", "fresh", "manisnya pas", "aromanya pas"],
     "ketahanan": ["ketahanan bagus", "ketahanan baik", "awet seharian", "tahan seharian", "tahan lama sekali"],
     "kemasan": ["kemasan bagus", "kemasan rapi", "botol bagus", "nozzle bagus", "spray lancar", "mewah", "premium", "aman", "kokoh", "eksklusif"],
 }
+
+
+_MAIN_ASPECT_RELEVANCE_MARKERS = {
+    "aroma": [
+        "aroma", "aromanya", "wangi", "wanginya", "harum", "bau", "notes", "scent",
+        "manis", "fresh", "segar", "tajam", "menyengat", "nyengat", "pusing", "eneg",
+        "mual", "alkohol"
+    ],
+    "ketahanan": [
+        "ketahanan", "ketahanannya", "tahan", "awet", "lama", "lasting", "durability",
+        "jam", "hilang", "pudar", "fading"
+    ],
+    "kemasan": [
+        "kemasan", "kemasannya", "packaging", "botol", "botolnya", "tutup", "tutupnya",
+        "nozzle", "spray", "sprayer", "semprot", "semprotan", "bocor", "rembes",
+        "macet", "longgar", "pecah", "retak", "rusak", "patah", "tumpah", "label"
+    ],
+}
+
+
+def _normalize_sentiment_text(text: str) -> str:
+    normalized = re.sub(r"[^a-z0-9\s]", " ", str(text or "").lower())
+    return re.sub(r"\s+", " ", normalized).strip()
 
 
 def _contains_aspect_keyword(text_lower: str, keyword: str) -> bool:
@@ -396,16 +422,63 @@ def _count_phrase_hits(text_lower: str, phrases: List[str]) -> int:
     return sum(1 for ph in phrases if _contains_aspect_keyword(text_lower, ph))
 
 
+def _is_no_complaint_text(normalized: str, aspect_key: str = "") -> bool:
+    if not normalized or normalized == "nan":
+        return False
+
+    if re.search(r"\b(?:tidak|nggak|gak|ga|ngga)\s+ada+\s+di\b", normalized):
+        return False
+
+    no_complaint_patterns = [
+        r"\b(?:tidak|nggak|gak|ga|ngga)\s+ada+\b(?:\s+(?:masalah|keluhan|kendala|komplain|complaint|issue|minus|kekurangan))?\b",
+        r"\b(?:tidak|nggak|gak|ga|ngga)\s+(?:pernah\s+)?(?:mengalami\s+)?(?:masalah|keluhan|kendala|komplain)\b",
+        r"\b(?:tidak|nggak|gak|ga|ngga)\s+(?:terlalu\s+)?(?:berlebihan|menyengat|tajam|kuat|manis)\b",
+        r"\b(?:tidak|nggak|gak|ga|ngga)\s+(?:bikin|membuat)\s+(?:pusing|eneg|enek|mual)\b",
+        r"\b(?:tidak|nggak|gak|ga|ngga)\s+(?:mudah|gampang)\s+(?:bocor|rembes|rusak|pecah|patah|retak|macet|lepas|longgar|tumpah)\b",
+    ]
+    if any(re.search(pattern, normalized) for pattern in no_complaint_patterns):
+        return True
+
+    return any(_contains_aspect_keyword(normalized, phrase) for phrase in [
+        "aman aman saja", "baik baik saja", "tidak bocor", "tidak macet",
+        "tidak longgar", "tidak rembes", "tidak rusak"
+    ])
+
+
+def _text_relevant_to_aspect(normalized: str, aspect_key: str) -> bool:
+    aspect_key = str(aspect_key or "").strip().lower()
+    if aspect_key not in _MAIN_ASPECT_RELEVANCE_MARKERS or not normalized:
+        return True
+
+    target_hits = any(
+        _contains_aspect_keyword(normalized, marker)
+        for marker in _MAIN_ASPECT_RELEVANCE_MARKERS[aspect_key]
+    )
+    if target_hits:
+        return True
+
+    other_hits = any(
+        _contains_aspect_keyword(normalized, marker)
+        for other_aspect, markers in _MAIN_ASPECT_RELEVANCE_MARKERS.items()
+        if other_aspect != aspect_key
+        for marker in markers
+    )
+    return not other_hits
+
+
 def _infer_text_sentiment_for_aspect(text: str, aspect: str) -> str:
     if pd.isna(text):
         return "Unknown"
 
-    normalized = re.sub(r"[^a-z0-9\s]", " ", str(text).lower())
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+    normalized = _normalize_sentiment_text(str(text))
     if not normalized or normalized == "nan":
         return "Unknown"
 
     aspect_key = str(aspect or "").strip().lower()
+    relevant_to_aspect = _text_relevant_to_aspect(normalized, aspect_key)
+    if _is_no_complaint_text(normalized, aspect_key):
+        return "Positif" if relevant_to_aspect else "Unknown"
+
     neg_phrases = list(_TEXT_SENTIMENT_NEGATIVE_CUES.get("_generic", [])) + list(_TEXT_SENTIMENT_NEGATIVE_CUES.get(aspect_key, []))
     neg_critical_phrases = list(_TEXT_SENTIMENT_NEGATIVE_CRITICAL_CUES.get("_generic", [])) + list(_TEXT_SENTIMENT_NEGATIVE_CRITICAL_CUES.get(aspect_key, []))
     pos_phrases = list(_TEXT_SENTIMENT_POSITIVE_CUES.get("_generic", [])) + list(_TEXT_SENTIMENT_POSITIVE_CUES.get(aspect_key, []))
@@ -441,21 +514,26 @@ def _infer_text_sentiment_for_aspect(text: str, aspect: str) -> str:
                 neg_hits = max(0, neg_hits - 1)
 
     # Strong complaint phrases should dominate unless explicitly negated.
-    if critical_neg_hits > 0 and negation_hits == 0:
+    if critical_neg_hits > 0 and negation_hits == 0 and relevant_to_aspect:
         return "Negatif"
 
     # **ENHANCEMENT**: Extra check for strong negative indicators in perfume context
-    strong_neg_tokens = {"pusing", "mual", "enek", "apek", "alkohol", "bocor", "rusak", "macet", "hilang", "cepat hilang"}
-    if any(tok in normalized for tok in strong_neg_tokens) and negation_hits == 0:
+    strong_neg_tokens_by_aspect = {
+        "aroma": {"pusing", "mual", "enek", "eneg", "apek", "alkohol", "menyengat", "nyengat", "tajam", "aroma hilang", "wangi hilang", "bau hilang"},
+        "ketahanan": {"hilang", "cepat hilang", "mudah hilang", "pudar", "tidak tahan", "kurang tahan"},
+        "kemasan": {"bocor", "rembes", "rusak", "macet", "pecah", "retak", "patah", "longgar", "tumpah"},
+    }
+    strong_neg_tokens = strong_neg_tokens_by_aspect.get(aspect_key, {"parah", "jelek", "buruk"})
+    if any(_contains_aspect_keyword(normalized, tok) for tok in strong_neg_tokens) and negation_hits == 0 and relevant_to_aspect:
         return "Negatif"
 
     neg_score = max(0, neg_hits - (negation_hits * 2))
     pos_score = pos_hits + negation_hits
 
     if neg_score > pos_score:
-        return "Negatif"
+        return "Negatif" if relevant_to_aspect else "Unknown"
     if pos_score > neg_score:
-        return "Positif"
+        return "Positif" if relevant_to_aspect else "Unknown"
     return "Unknown"
 
 def tokenize_id(text: str) -> List[str]:
@@ -752,9 +830,12 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         return None
 
     def infer_issue_text_sentiment(text: str, aspect_name: str) -> str:
-        normalized = re.sub(r"\s+", " ", str(text or "").lower()).strip()
+        normalized = _normalize_sentiment_text(str(text or ""))
         if not normalized or normalized == "nan":
             return "Unknown"
+
+        if _is_no_complaint_text(normalized, aspect_name):
+            return "Netral"
 
         no_issue_markers = [
             "tidak pernah mengalami masalah",
@@ -1922,7 +2003,7 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
     GENERIC_ISSUE_TOKENS = {
         "parfum", "produk", "wangi", "harum", "tahan", "lama", "bagus", "baik", "oke",
         "enak", "suka", "banget", "sekali", "cukup", "lebih",  "udah", "sudah",
-        "masih", "terlalu", "terasa", "akhir", "kurang", "sangat", "agak", "lumayan",
+        "masih", "terlalu", "terasa", "akhir",  "sangat", "agak", "lumayan",
         "karena", "kalau", "cuma", "hanya", "terus", "lagi", "bikin", "ketahanan", "aroma", "kemasan", "tekstur",
         "wanginya", "aromanya", "kemasannya", "teksturnya", "ketahanannya", "botolnya", "tutupnya", "parfumnya",
         "produknya", "cepat", "lembut", "kasar", "biasa", "seperti", "kayak", "pas"
@@ -2218,6 +2299,13 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         return _row_sentiment(row_data)
 
     def _resolve_aspect_sentiment(row_data, asp: str, text_value: str) -> str:
+        normalized_text = _normalize_sentiment_text(text_value)
+        if normalized_text:
+            if _is_no_complaint_text(normalized_text, asp):
+                return "Positif"
+            if not _text_relevant_to_aspect(normalized_text, asp):
+                return "Unknown"
+
         base_sent = _row_sentiment_for_aspect(row_data, asp)
         text_hint = _infer_text_sentiment_for_aspect(text_value, asp)
         
@@ -2250,6 +2338,80 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
         negatif = int((sentiments == "Negatif").sum())
         
         return {"total": total, "negatif": negatif}
+
+    def _clean_review_text(value) -> str:
+        if value is None:
+            return ""
+        try:
+            if pd.isna(value):
+                return ""
+        except Exception:
+            pass
+        text = re.sub(r"\s+", " ", str(value)).strip()
+        if not text or text.lower() == "nan":
+            return ""
+        return text
+
+    def _review_text_for_row(row_data, aspect: str):
+        available_cols = set(row_data.index) if hasattr(row_data, "index") else set(row_data.keys())
+        preferred_cols = []
+        for col in [aspect_comment_cols.get(aspect), aspect_issue_cols.get(aspect), text_col]:
+            if col and col in available_cols and col not in preferred_cols:
+                preferred_cols.append(col)
+
+        for col in preferred_cols:
+            text = _clean_review_text(row_data.get(col))
+            if text:
+                return text, col
+
+        return "Baris data negatif tanpa teks ulasan.", ""
+
+    def _negative_review_details(frame: pd.DataFrame, aspect: str, context_label: str = "") -> List[Dict[str, object]]:
+        reviews: List[Dict[str, object]] = []
+        if frame is None or len(frame) == 0:
+            return reviews
+
+        aspect_text_col = aspect_comment_cols.get(aspect) or text_col
+        for _, row_data in frame.iterrows():
+            sentiment_text = ""
+            if aspect_text_col and aspect_text_col in frame.columns:
+                sentiment_text = _clean_review_text(row_data.get(aspect_text_col))
+
+            sentiment = _resolve_aspect_sentiment(row_data.to_dict(), aspect, sentiment_text)
+            if sentiment != "Negatif":
+                continue
+
+            review_text, source_col = _review_text_for_row(row_data, aspect)
+            review_norm = _normalize_sentiment_text(review_text)
+            if _is_no_complaint_text(review_norm, aspect) or not _text_relevant_to_aspect(review_norm, aspect):
+                continue
+
+            item = {
+                "nomor": len(reviews) + 1,
+                "ulasan": review_text,
+                "aspek": aspect.capitalize(),
+                "sentimen": "Negatif",
+            }
+
+            if context_label:
+                item["konteks"] = context_label
+
+            if variant_col and variant_col in frame.columns:
+                varian_text = _clean_review_text(row_data.get(variant_col))
+                if varian_text:
+                    item["varian"] = varian_text
+
+            if "_trend_period" in frame.columns:
+                periode_text = _clean_review_text(row_data.get("_trend_period"))
+                if periode_text:
+                    item["periode"] = periode_text
+
+            if source_col:
+                item["kolom_ulasan"] = source_col
+
+            reviews.append(item)
+
+        return reviews
 
     variant_list = []
     variant_rankings = []
@@ -2438,6 +2600,12 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                     "jumlah_positif": int(asp_pos_mask_local.sum()),
                 }
 
+            negative_reviews_var = {
+                "aroma": _negative_review_details(var_frame, "aroma", f"Varian {var}"),
+                "ketahanan": _negative_review_details(var_frame, "ketahanan", f"Varian {var}"),
+                "kemasan": _negative_review_details(var_frame, "kemasan", f"Varian {var}"),
+            }
+
             # KEKUATAN & KELEMAHAN (Strength & Weakness)
             neg_text_sources = []
             pos_text_sources = []
@@ -2598,6 +2766,7 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 "aroma_plan": aroma_plan,
                 "ketahanan_plan": ketahanan_plan,
                 "kemasan_plan": kemasan_plan,
+                "negative_reviews": negative_reviews_var,
                 "drilldown_aspek": drilldown_var,
                 "top_strength": top_strength,
                 "top_weakness": top_weakness,
@@ -2744,6 +2913,7 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
             "confidence": reco_plan.get("confidence", "medium"),
             "data": reco_plan.get("data", {}),
             "issue_utama": issues,
+            "negative_reviews": _negative_review_details(df, asp, "Semua responden"),
             "prioritas": i
         })
 
@@ -2765,6 +2935,7 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 "confidence": reco_plan.get("confidence", "medium"),
                 "data": reco_plan.get("data", {}),
                 "issue_utama": issues,
+                "negative_reviews": _negative_review_details(df, asp, "Semua responden"),
                 "prioritas": len(rekomendasi_list) + 1
             })
 
@@ -3090,6 +3261,7 @@ def _internal_run_analysis_from_csv_url(csv_url: str) -> dict:
                 "confidence": reco_plan.get("confidence", "medium"),
                 "data": reco_plan.get("data", {}),
                 "issue_utama": isu_utama,
+                "negative_reviews": _negative_review_details(frame, asp, labels_map.get(segment_key, "Segmen aktif")),
             }
 
         rekomendasi_local = []

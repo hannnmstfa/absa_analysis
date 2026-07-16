@@ -17,7 +17,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.pipeline import Pipeline
 
 
-URL = "https://docs.google.com/spreadsheets/d/1kZhMZ1PezsznYVfe3eLoH1UZKRdnOJKHzMDfR78sE_w/export?format=csv&gid=729413622"
+URL = "https://docs.google.com/spreadsheets/d/1NgepCH6sZSL-oZtn-4mPIeTF_A21GDVWZ3yWdg5GnZM/export?format=csv&gid=1766541528"
 
 # --- helpers ---
 normalization_dict = {
@@ -223,8 +223,8 @@ if len(df_model) >= 5 and df_model['label'].nunique() >= 2:
     best_acc = max(acc_nb, acc_svm)
 
     # cross validation scores
-    pipe_nb = GridSearchCV(Pipeline([('tfidf', tfidf),('clf', MultinomialNB())]), param_grid={'clf__alpha': [0.1, 0.5, 1.0, 2.0]}, cv=3)
-    pipe_svm = GridSearchCV(Pipeline([('tfidf', tfidf),('clf', LinearSVC(random_state=42, max_iter=2000, class_weight="balanced"))]), param_grid={'clf__C': [0.1, 0.5, 1.0, 5.0]}, cv=3)
+    pipe_nb = GridSearchCV(GridSearchCV(Pipeline([('tfidf', tfidf),('clf', MultinomialNB())]), param_grid={'clf__alpha': [0.1, 0.5, 1.0, 2.0]}, cv=3), param_grid={'clf__alpha': [0.1, 0.5, 1.0, 2.0]}, cv=3)
+    pipe_svm = GridSearchCV(GridSearchCV(Pipeline([('tfidf', tfidf),('clf', LinearSVC(random_state=42, max_iter=2000, class_weight="balanced"))]), param_grid={'clf__C': [0.1, 0.5, 1.0, 5.0]}, cv=3), param_grid={'clf__C': [0.1, 0.5, 1.0, 5.0]}, cv=3)
     try:
         cv_nb = cross_val_score(pipe_nb, X, y, cv=5, scoring='accuracy', n_jobs=-1)
         cv_svm = cross_val_score(pipe_svm, X, y, cv=5, scoring='accuracy', n_jobs=-1)

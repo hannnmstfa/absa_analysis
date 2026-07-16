@@ -1422,6 +1422,11 @@
       box-shadow: var(--inner);
     }
 
+    .rekomBody {
+      min-width: 0;
+      flex: 1;
+    }
+
     .rekomItem:first-of-type {
       margin-top: 8px
     }
@@ -1452,6 +1457,85 @@
       color: rgba(255, 255, 255, .84);
       font-size: 12px;
       line-height: 1.45
+    }
+
+    .negativeReviewsBox {
+      margin-top: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(0, 0, 0, .18);
+      overflow: hidden;
+    }
+
+    .negativeReviewsBox summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      color: rgba(255, 255, 255, .82);
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .negativeReviewsBox summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .negativeReviewsBox summary:after {
+      content: "+";
+      color: var(--gold);
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .negativeReviewsBox[open] summary:after {
+      content: "-";
+    }
+
+    .negativeReviewsBox.is-empty summary {
+      color: rgba(255, 255, 255, .55);
+      cursor: default;
+    }
+
+    .negativeReviewList {
+      margin: 0;
+      padding: 0 10px 10px 28px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .negativeReviewList li {
+      padding: 8px 0;
+      border-top: 1px solid rgba(255, 255, 255, .07);
+      color: rgba(255, 255, 255, .82);
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+
+    .negativeReviewMeta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .negativeReviewMeta span {
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, .09);
+      background: rgba(255, 255, 255, .05);
+      color: rgba(255, 255, 255, .68);
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .negativeReviewMeta .sentiment {
+      border-color: rgba(215, 92, 68, .32);
+      background: rgba(215, 92, 68, .12);
+      color: rgba(255, 166, 150, .95);
     }
 
     .rekomGrid {
@@ -2791,6 +2875,18 @@
       . ' • Jangka Waktu: ' . (int) data_get($defaultKemasanPlan, 'horizon_hari', 0) . ' hari'
       . ' • Tingkat Keyakinan: ' . $toConfidenceLabel(data_get($defaultKemasanPlan, 'confidence', '-'));
 
+    $negativeReviewsFor = function ($reviews) {
+      if (!is_array($reviews)) {
+        return [];
+      }
+      return array_values(array_filter($reviews, function ($item) {
+        if (is_array($item)) {
+          return trim((string) data_get($item, 'ulasan', '')) !== '';
+        }
+        return trim((string) $item) !== '';
+      }));
+    };
+
     $segmentasi = data_get($result ?? [], 'segmentasi_responden', []);
     $segKolom = data_get($segmentasi, 'kolom_pengalaman');
     $segMode = data_get($segmentasi, 'mode_analisis', '-');
@@ -3735,28 +3831,40 @@
             <div class="rekomGrid">
               <div class="rekomItem">
                 <div class="ricon">🌸</div>
-                <div>
+                <div class="rekomBody">
                   <p class="ttl">Rekomendasi Aroma (per varian)</p>
                   <p class="txt" id="recoAromaText">{{ $defaultAromaReco }}</p>
                   <p class="mini" id="recoAromaMeta" style="margin-top:4px">{{ $defaultAromaMeta }}</p>
+                  <details class="negativeReviewsBox" id="recoAromaNegBox">
+                    <summary id="recoAromaNegSummary">Memuat ulasan negatif...</summary>
+                    <ol class="negativeReviewList" id="recoAromaNegList"></ol>
+                  </details>
                 </div>
               </div>
 
               <div class="rekomItem">
                 <div class="ricon">⏱️</div>
-                <div>
+                <div class="rekomBody">
                   <p class="ttl">Rekomendasi Ketahanan (per varian)</p>
                   <p class="txt" id="recoKetahananText">{{ $defaultKetahananReco }}</p>
                   <p class="mini" id="recoKetahananMeta" style="margin-top:4px">{{ $defaultKetahananMeta }}</p>
+                  <details class="negativeReviewsBox" id="recoKetahananNegBox">
+                    <summary id="recoKetahananNegSummary">Memuat ulasan negatif...</summary>
+                    <ol class="negativeReviewList" id="recoKetahananNegList"></ol>
+                  </details>
                 </div>
               </div>
 
               <div class="rekomItem">
                 <div class="ricon">📦</div>
-                <div>
+                <div class="rekomBody">
                   <p class="ttl">Rekomendasi Kemasan (per varian)</p>
                   <p class="txt" id="recoKemasanText">{{ $defaultKemasanReco }}</p>
                   <p class="mini" id="recoKemasanMeta" style="margin-top:4px">{{ $defaultKemasanMeta }}</p>
+                  <details class="negativeReviewsBox" id="recoKemasanNegBox">
+                    <summary id="recoKemasanNegSummary">Memuat ulasan negatif...</summary>
+                    <ol class="negativeReviewList" id="recoKemasanNegList"></ol>
+                  </details>
                 </div>
               </div>
             </div>
@@ -3766,15 +3874,40 @@
         @else
           <div class="rekomGrid">
             @forelse($rekom as $r)
+              @php $negativeReviews = $negativeReviewsFor(data_get($r, 'negative_reviews', [])); @endphp
               <div class="rekomItem">
                 <div class="ricon">★</div>
-                <div>
+                <div class="rekomBody">
                   <p class="ttl">{{ data_get($r, 'aspek', '-') }}</p>
                   <p class="txt">{{ data_get($r, 'text', '-') }}</p>
                   <p class="mini" style="margin-top:4px">
                     KPI: {{ data_get($r, 'kpi_target', '-') }} • Jangka Waktu: {{ (int) data_get($r, 'horizon_hari', 0) }}
                     hari • Tingkat Keyakinan: {{ $toConfidenceLabel(data_get($r, 'confidence', '-')) }}
                   </p>
+                  <details class="negativeReviewsBox {{ empty($negativeReviews) ? 'is-empty' : '' }}">
+                    <summary>{{ empty($negativeReviews) ? 'Tidak ada ulasan negatif' : 'Lihat ' . count($negativeReviews) . ' ulasan negatif' }}</summary>
+                    <ol class="negativeReviewList">
+                      @forelse($negativeReviews as $review)
+                        @php
+                          $reviewText = is_array($review) ? data_get($review, 'ulasan', '-') : $review;
+                          $reviewAspek = is_array($review) ? data_get($review, 'aspek') : null;
+                          $reviewVarian = is_array($review) ? data_get($review, 'varian') : null;
+                          $reviewPeriode = is_array($review) ? data_get($review, 'periode') : null;
+                        @endphp
+                        <li>
+                          <div>{{ $reviewText }}</div>
+                          <div class="negativeReviewMeta">
+                            @if($reviewAspek)<span>{{ $reviewAspek }}</span>@endif
+                            @if($reviewVarian)<span>{{ $reviewVarian }}</span>@endif
+                            @if($reviewPeriode)<span>{{ $reviewPeriode }}</span>@endif
+                            <span class="sentiment">Negatif</span>
+                          </div>
+                        </li>
+                      @empty
+                        <li>Belum ada ulasan negatif untuk konteks ini.</li>
+                      @endforelse
+                    </ol>
+                  </details>
                 </div>
               </div>
             @empty
@@ -3787,15 +3920,40 @@
         <div class="mini" style="margin-top:16px;margin-bottom:6px"><b>Rekomendasi Strategis (Segmen Aktif)</b></div>
         <div id="segmentRekomList" class="rekomGrid" style="margin-top:0">
           @forelse($rekomSegmentAwal as $r)
+            @php $negativeReviews = $negativeReviewsFor(data_get($r, 'negative_reviews', [])); @endphp
             <div class="rekomItem">
               <div class="ricon">★</div>
-              <div>
+              <div class="rekomBody">
                 <p class="ttl">{{ data_get($r, 'aspek', '-') }}</p>
                 <p class="txt">{{ data_get($r, 'text', '-') }}</p>
                 <p class="mini" style="margin-top:4px">
                   KPI: {{ data_get($r, 'kpi_target', '-') }} • Jangka Waktu: {{ (int) data_get($r, 'horizon_hari', 0) }}
                   hari • Tingkat Keyakinan: {{ $toConfidenceLabel(data_get($r, 'confidence', '-')) }}
                 </p>
+                <details class="negativeReviewsBox {{ empty($negativeReviews) ? 'is-empty' : '' }}">
+                  <summary>{{ empty($negativeReviews) ? 'Tidak ada ulasan negatif' : 'Lihat ' . count($negativeReviews) . ' ulasan negatif' }}</summary>
+                  <ol class="negativeReviewList">
+                    @forelse($negativeReviews as $review)
+                      @php
+                        $reviewText = is_array($review) ? data_get($review, 'ulasan', '-') : $review;
+                        $reviewAspek = is_array($review) ? data_get($review, 'aspek') : null;
+                        $reviewVarian = is_array($review) ? data_get($review, 'varian') : null;
+                        $reviewPeriode = is_array($review) ? data_get($review, 'periode') : null;
+                      @endphp
+                      <li>
+                        <div>{{ $reviewText }}</div>
+                        <div class="negativeReviewMeta">
+                          @if($reviewAspek)<span>{{ $reviewAspek }}</span>@endif
+                          @if($reviewVarian)<span>{{ $reviewVarian }}</span>@endif
+                          @if($reviewPeriode)<span>{{ $reviewPeriode }}</span>@endif
+                          <span class="sentiment">Negatif</span>
+                        </div>
+                      </li>
+                    @empty
+                      <li>Belum ada ulasan negatif untuk konteks ini.</li>
+                    @endforelse
+                  </ol>
+                </details>
               </div>
             </div>
           @empty
@@ -4981,13 +5139,46 @@
           return parts.length ? parts.join(' • ') : '-';
         };
 
+        const renderNegativeReviewItem = (review) => {
+          const data = review && typeof review === 'object' && !Array.isArray(review)
+            ? review
+            : { ulasan: review };
+          const tags = [data.aspek, data.varian, data.periode].filter(value => String(value || '').trim());
+          const tagHtml = tags.map(tag => `<span>${safeHtml(tag)}</span>`).join('');
+          return `
+                                <li>
+                                  <div>${safeHtml(data.ulasan || data.text || data.review || '-')}</div>
+                                  <div class="negativeReviewMeta">
+                                    ${tagHtml}
+                                    <span class="sentiment">Negatif</span>
+                                  </div>
+                                </li>
+                              `;
+        };
+
+        const renderNegativeReviewDetails = (row) => {
+          const reviews = Array.isArray(row?.negative_reviews) ? row.negative_reviews : [];
+          const count = reviews.length;
+          const summary = count > 0 ? `Lihat ${count} ulasan negatif` : 'Tidak ada ulasan negatif';
+          const items = count > 0
+            ? reviews.map(renderNegativeReviewItem).join('')
+            : '<li>Belum ada ulasan negatif untuk konteks ini.</li>';
+          return `
+                                <details class="negativeReviewsBox${count > 0 ? '' : ' is-empty'}">
+                                  <summary>${safeHtml(summary)}</summary>
+                                  <ol class="negativeReviewList">${items}</ol>
+                                </details>
+                              `;
+        };
+
         segmentRekomList.innerHTML = items.slice(0, 3).map(row => `
                               <div class="rekomItem">
                                 <div class="ricon">★</div>
-                                <div>
+                                <div class="rekomBody">
                                   <p class="ttl">${safeHtml(toTitleCase(row.aspek))}</p>
                                   <p class="txt">${safeHtml(normalizeSentence(row.text))}</p>
                                   <p class="mini" style="margin-top:4px">${safeHtml(buildMetaLine(row))}</p>
+                                  ${renderNegativeReviewDetails(row)}
                                 </div>
                               </div>
                             `).join('');
@@ -5049,10 +5240,15 @@
         const issue = String(issueText || '').trim().toLowerCase();
         if (!issue || issue === '-') return null;
 
+        const explicitAspect = issue.match(/\b(?:keluhan|masalah|isu)\s+pada\s+(aroma|ketahanan|kemasan)\b/);
+        if (explicitAspect && explicitAspect[1]) {
+          return explicitAspect[1];
+        }
+
         const issueAspectMap = {
-          aroma: ['menyengat', 'nyengat', 'pusing', 'tajam', 'bau', 'eneg', 'manis', 'wangi', 'harum'],
+          aroma: ['aroma', 'menyengat', 'nyengat', 'pusing', 'tajam', 'bau', 'eneg', 'manis', 'wangi', 'harum'],
           ketahanan: ['cepat', 'hilang', 'ilang', 'pudar', 'awet', 'tahan', 'lama', 'ketahanan'],
-          kemasan: ['bocor', 'tumpah', 'rembes', 'rusak', 'pecah', 'patah', 'retak', 'longgar', 'lepas', 'tutup', 'nozzle', 'spray', 'semprot', 'sprayer'],
+          kemasan: ['kemasan', 'bocor', 'tumpah', 'rembes', 'rusak', 'pecah', 'patah', 'retak', 'longgar', 'lepas', 'tutup', 'nozzle', 'spray', 'semprot', 'sprayer', 'botol'],
         };
 
         for (const [aspect, keywords] of Object.entries(issueAspectMap)) {
@@ -5346,6 +5542,23 @@
       const ketahananMetaEl = document.getElementById('recoKetahananMeta');
       const kemasanMetaEl = document.getElementById('recoKemasanMeta');
       const variantCommentInfoEl = document.getElementById('variantCommentInfo');
+      const negativeReviewTargets = {
+        aroma: {
+          box: document.getElementById('recoAromaNegBox'),
+          summary: document.getElementById('recoAromaNegSummary'),
+          list: document.getElementById('recoAromaNegList'),
+        },
+        ketahanan: {
+          box: document.getElementById('recoKetahananNegBox'),
+          summary: document.getElementById('recoKetahananNegSummary'),
+          list: document.getElementById('recoKetahananNegList'),
+        },
+        kemasan: {
+          box: document.getElementById('recoKemasanNegBox'),
+          summary: document.getElementById('recoKemasanNegSummary'),
+          list: document.getElementById('recoKemasanNegList'),
+        },
+      };
       if (!select || !aromaEl || !ketahananEl) return;
 
       const sampleByVariant = Array.isArray(variantRankings)
@@ -5378,6 +5591,53 @@
         return parts.length ? parts.join(' • ') : '-';
       }
 
+      function escapeHtmlLocal(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function renderNegativeReviewItem(review) {
+        const data = review && typeof review === 'object' && !Array.isArray(review)
+          ? review
+          : { ulasan: review };
+        const tags = [data.aspek, data.varian, data.periode].filter(value => String(value || '').trim());
+        const tagHtml = tags.map(tag => `<span>${escapeHtmlLocal(tag)}</span>`).join('');
+        return `
+          <li>
+            <div>${escapeHtmlLocal(data.ulasan || data.text || data.review || '-')}</div>
+            <div class="negativeReviewMeta">
+              ${tagHtml}
+              <span class="sentiment">Negatif</span>
+            </div>
+          </li>
+        `;
+      }
+
+      function renderNegativeReviews(data, aspect) {
+        const target = negativeReviewTargets[aspect];
+        if (!target || !target.summary || !target.list) return;
+
+        const grouped = data && data.negative_reviews ? data.negative_reviews : {};
+        const reviews = Array.isArray(grouped[aspect]) ? grouped[aspect] : [];
+        const count = reviews.length;
+
+        target.summary.textContent = count > 0
+          ? `Lihat ${fmtInt(count)} ulasan negatif`
+          : 'Tidak ada ulasan negatif';
+        target.list.innerHTML = count > 0
+          ? reviews.map(renderNegativeReviewItem).join('')
+          : '<li>Belum ada ulasan negatif untuk konteks ini.</li>';
+
+        if (target.box) {
+          target.box.classList.toggle('is-empty', count <= 0);
+          if (count <= 0) target.box.open = false;
+        }
+      }
+
       function updateReco() {
         const v = select.value;
         const data = recs[v] || {};
@@ -5387,6 +5647,9 @@
         if (aromaMetaEl) aromaMetaEl.textContent = fmtMeta(data.aroma_plan);
         if (ketahananMetaEl) ketahananMetaEl.textContent = fmtMeta(data.ketahanan_plan);
         if (kemasanMetaEl) kemasanMetaEl.textContent = fmtMeta(data.kemasan_plan);
+        renderNegativeReviews(data, 'aroma');
+        renderNegativeReviews(data, 'ketahanan');
+        renderNegativeReviews(data, 'kemasan');
         if (variantCommentInfoEl) {
           const totalKomentar = sampleByVariant[v];
           variantCommentInfoEl.textContent = `Jumlah komentar varian terpilih: ${Number.isFinite(totalKomentar) ? fmtInt(totalKomentar) : '-'}`;

@@ -76,6 +76,39 @@ class GuardrailTests(unittest.TestCase):
         self.assertFalse(beta_meta.get("sample_sufficient"))
         self.assertIn("Catatan: sampel varian", beta_reco.get("aroma", ""))
 
+    def test_sentiment_guards_avoid_false_negative_reviews(self):
+        false_positive_cases = [
+            ("tidak ada", "aroma", "Positif"),
+            ("tidak adaa", "kemasan", "Positif"),
+            ("tidak ada kekurangan dalam aroma dan ketahanan lamanya", "aroma", "Positif"),
+            ("tidak ada kekurangan dalam aroma dan ketahanan lamanya", "ketahanan", "Positif"),
+            ("Aromanya pas, manisnya tidak berlebihan.", "aroma", "Positif"),
+            ("Overall aromanya enak, tidak berlebihan, dan cukup cocok", "aroma", "Positif"),
+            ("Tidak membuat pusing", "aroma", "Positif"),
+            ("Aromanya fresh, nyaman, dan cocok dipakai harian. Overall saya suka karena tidak bikin enek.", "aroma", "Positif"),
+            ("tidak bikin enek", "aroma", "Positif"),
+            ("tidak membuat enek", "aroma", "Positif"),
+            ("tidak enek", "aroma", "Positif"),
+            ("Praktis dibawa dan tidak mudah bocor.", "kemasan", "Positif"),
+            ("Label bisa dibuat lebih kuat agar tidak mudah rusak.", "kemasan", "Positif"),
+            ("spray macet", "aroma", "Unknown"),
+            ("perubahan aroma tidak konsisten", "ketahanan", "Unknown"),
+        ]
+        for text, aspect, expected in false_positive_cases:
+            with self.subTest(text=text, aspect=aspect):
+                self.assertEqual(engine._infer_text_sentiment_for_aspect(text, aspect), expected)
+
+        valid_negative_cases = [
+            ("perubahan aroma tidak konsisten", "aroma"),
+            ("spray macet", "kemasan"),
+            ("botol bocor", "kemasan"),
+            ("ketahanan kurang tahan lama", "ketahanan"),
+            ("aroma cepat hilang", "aroma"),
+        ]
+        for text, aspect in valid_negative_cases:
+            with self.subTest(text=text, aspect=aspect):
+                self.assertEqual(engine._infer_text_sentiment_for_aspect(text, aspect), "Negatif")
+
 
 if __name__ == "__main__":
     unittest.main()
